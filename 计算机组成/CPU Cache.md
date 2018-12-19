@@ -1,6 +1,6 @@
 ### CPU Cache
 
-![cpucache](..\imgs\cpu_cache.png)
+![1545184895924](assets/1545184895924.png)
 
 
 
