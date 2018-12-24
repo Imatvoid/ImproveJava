@@ -17,3 +17,4 @@ Unicode编码，UTF-16  存储
 - API相同
 
 - 由于 StringBuilder 相较于 StringBuffer 有速度优势，所以多数情况下建议使用 StringBuilder 类。然而在应用程序要求线程安全的情况下，则必须使用 StringBuffer 类。
+
