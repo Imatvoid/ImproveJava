@@ -10,7 +10,11 @@ Unicode编码，UTF-16  存储
 
 讲的很好:http://www.cnblogs.com/fnlingnzb-learner/p/6163205.html
 
+https://www.jianshu.com/p/50107efaac30
 
+ java不同编码之间进行转换，都需要使用unicode作为中转。
+
+http://www.lianhekj.com/question/496912925852330444.html
 
 ##### StringBuilder  和 StringBuffer
 
