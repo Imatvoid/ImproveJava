@@ -64,8 +64,3 @@ option参数
 ![Protocol state machine example - Thread States and Life Cycle in Java 6.](https://www.uml-diagrams.org/examples/state-machine-example-java-6-thread-states.png)
 
 
-
-
-
-
-

@@ -38,13 +38,15 @@ Thread.currentThread().isAlive()
 
 #### 线程的停止
 
-interrupt
+----------------------------
+
+#### interrupt
 
 打标
 
 
 
-interrupted
+#### interrupted()
 
 静态方法，**当前线程**是否中断，当前线程指的是运行this.interrupted的线程,注意会清除标志
 
@@ -58,7 +60,7 @@ interrupted
 
 
 
-isInterrupted
+#### isInterrupted()
 
 测试线程是否已经中断
 
