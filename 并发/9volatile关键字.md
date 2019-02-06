@@ -12,6 +12,32 @@
 
 ​      这在双重校验锁实现单例模式时候用到了。  
 
+      ```java
+public class SafeDoubleCheckedLocking {
+    private volatile static Instance instance;  //禁止重排序，防止访问到的对象还没初始化完
+
+    public static Instance getInstance() {
+        if (instance == null) {
+            synchronized (SafeDoubleCheckedLocking.class) {  //加锁避免重复创建对象
+                if (instance == null) {
+                    instance = new Instance();   // instance为volatile,现在没问题了
+                }
+            }
+        }
+
+        return instance;
+    }
+}
+注意 这个解决方案需要JDK 5或更高版本(因为从JDK 5开始使用新的JSR-13 3内存模
+型规范,这个规范增强了volatile的语义)。
+      ```
+
+
+
+
+
+
+
 
 
 #### volatile 和 synchronized的比较
