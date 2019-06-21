@@ -8,11 +8,15 @@
 
 
 
+## IF ELSE 嵌套过深
 
 
 
+### 适当地抽取方法
 
-## 卫语句 -  漏斗式的代码
+https://refactoring.com/catalog/extractFunction.html
+
+### 卫语句 -  漏斗式的代码
 
 优化前
 
@@ -56,7 +60,7 @@ double getPayAmount(){
 
 
 
-##  尝试Optional
+###  尝试Optional
 
 举一个简单的例子
 
@@ -80,11 +84,43 @@ strOptional.ifPresentOrElse(System.out::println, () -> System.out.println("Null"
 
 
 
+## IF ELSE 数量过多
+
+### 表驱动法(IF 判断条件单一)
+
+>  表驱动法是一种编程模式，它的本质是，从表里查询信息来代替逻辑语句(if,case)。
+
+
+
+```java
+Map<?, Function<?> action> actionsMap = new HashMap<>();
+
+// 初试配置对应动作
+actionsMap.put(value1, (someParams) -> { doAction1(someParams)});
+actionsMap.put(value2, (someParams) -> { doAction2(someParams)});
+actionsMap.put(value3, (someParams) -> { doAction3(someParams)});
+ 
+// 省略 null 判断
+actionsMap.get(param).apply(someParams);
+```
+
+
+
+### 责任链
+
+
+
+### 注解驱动
+
+通过 Java 注解（或其它语言的类似机制）定义执行某个方法/类的条件。在程序执行时，通过对比入参与注解中定义的条件是否匹配，再决定是否调用此方法。具体实现时，可以采用表驱动或职责链的方式实现。
+
+### 更复杂: 状态机  / 规则引擎
+
+
+
 ## 参考
 
 http://cmsblogs.com/?p=2691
-
-https://juejin.im/post/5cc6a7fc5188250f015b5843
 
 https://blog.csdn.net/qq_35440678/article/details/77939999
 
