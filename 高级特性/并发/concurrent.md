@@ -2,7 +2,8 @@
 
 ### 线程状态
 
-![image-20190628160925269](/Users/yangxu/Library/Application%20Support/typora-user-images/image-20190628160925269.png)
+
+![image-20190629141808810](/Users/yangxu/Documents/ImproveJava/高级特性/并发/concurrent/image-20190629141808810.png)
 
 ### 新建线程
 
