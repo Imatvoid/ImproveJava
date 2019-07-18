@@ -1,3 +1,5 @@
+
+
 ##  Java内存模型(JMM)
 
 ### 原子性(Atomicity)
@@ -270,7 +272,172 @@ Integer是不可变对象,i++ 实际是Integer.valueOf(),锁住的不是一个�
 
 ## JDK并发包
 
-### ReentrantLock重入锁
+### 倒计数器CountDownLatch
+
+> 火箭发射前,做好所有检查工作后,再发射火箭
+
+![image-20190718154244309](assets/concurrent/image-20190718154244309.png)
+
+
+```java
+// 新建
+CountDownLatch end = new CountDownLatch(10);
+
+// 递减
+{
+ end.countDown();
+}
+
+
+// 等待直到条件全部达成
+{
+ end.await();
+ System.out.println("Fire!");
+}
+```
+
+
+
+### 循环栅栏CyclicBarrier
+
+和CountDownLatch 很类似,但功能更加强大
+
+![image-20190718155336625](assets/concurrent/image-20190718155336625.png)
+
+ Cyclic是循环,代表可以反复使用,barrierAction可以指定一次计数完成后应该采取的动作
+
+```java
+//parties 计数总数,也就是参与的线程数量.当await线程的数量到达parties的时候
+//barrierAction  一次计数完成后应该采取的动作
+public CyclicBarrier(int parties, Runnable barrierAction) {
+  
+}
+```
+
+
+
+```java
+
+
+{
+  cyclicBarrier.await();
+}
+// 新建cyclicBarrier
+CyclicBarrier cyclicBarrier = new CyclicBarrier(N, new BarrierRun());
+```
+
+
+
+可能抛出InterruptedException, BrokenBarrierException 
+
+其中BrokenBarrierException计数器已经破损.再也无法达成.此时应该让线程退出.
+
+比如,一共10个线程要在cyclicBarrier上等待后执行,如果一个线程调用了interrupt.那么很可能在被中断线程上得到一个InterruptedException ,在其他 9个等待的线程上得到BrokenBarrierException.
+
+BrokenBarrierException可以避免其他线程无谓的等待.
+
+
+
+### 信号量Semphore
+
+Semaphore可以控制某个资源可被同时访问的个数，通过 acquire() 获取一个许可，如果没有就等待，而 release() 释放一个许可。
+
+可以通过构造方法设置是否公平.
+
+```java
+public Semaphore(int permits) {}
+
+public Semaphore(int permits, boolean fair){}
+```
+
+一个典型的例子是.
+
+```java
+public class SemapDemo implements Runnable {
+    // 最大的并发是5.
+    final Semaphore semp = new Semaphore(5);
+
+    @Override
+    public void run() {
+        try {
+            
+            semp.acquire();
+            //----------------临界区--------------
+            Thread.sleep(2000);
+            System.out.println(Thread.currentThread().getId() + ":done!");
+            //----------------临界区--------------
+            semp.release();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 总共20个线程,系统会以5个线程一组为单位,依次执行并输出
+     *
+     * @param args
+     */
+    public static void main(String args[]) throws  InterruptedException{
+        ExecutorService executorService = Executors.newFixedThreadPool(20);
+        final SemapDemo demo = new SemapDemo();
+        for (int i = 0; i < 20; i++) {
+            executorService.submit(demo);
+        }
+        // 不然线程池没退出
+        Thread.sleep(10000);
+        executorService.shutdown();
+    }
+}
+```
+
+#### 主要方法
+
+##### 获取许可证
+
+```java
+//获取一个许可证(响应中断)，在没有可用的许可证时当前线程被阻塞。
+public void acquire() throws InterruptedException {
+   sync.acquireSharedInterruptibly(1);
+}
+
+//获取一个许可证(不响应中断)
+public void acquireUninterruptibly() {
+   sync.acquireShared(1);
+}
+
+//尝试获取许可证(非公平获取)，立即返回结果（非阻塞）。
+public boolean tryAcquire() {
+   return sync.nonfairTryAcquireShared(1) >= 0;
+}
+
+//尝试获取许可证(定时获取)
+public boolean tryAcquire(long timeout, TimeUnit unit) throws InterruptedException {
+   return sync.tryAcquireSharedNanos(1, unit.toNanos(timeout));
+}
+
+```
+
+##### 释放许可证
+
+```java
+public void release() {
+    sync.releaseShared(1);
+}
+// 释放几个许可
+public void release(int permits) {
+    if (permits < 0) throw new IllegalArgumentException();
+    sync.releaseShared(permits);
+}
+
+```
+
+
+
+
+
+
+
+### 重入锁ReentrantLock
 
 > 重入锁可以完全代替synchronized,在java5之前,其性能远远优于synchronized,java6对synchronized做了大量优化,使得两者差距并不大,但ReentrantLock无疑更灵活.
 
@@ -345,21 +512,167 @@ synchronized是非公平的,在创建reentrantlock的时候可以指定公平还
 
 
 
-### Condition 重入锁的好搭档
+### 重入锁的好搭档 Condition 
 
 synchronized -- wait notify
 
 Condition和ReentrantLock组合可以实现类似上面组合的效果
 
-- 
+
+
+### 读写锁ReadWriteLock
+
+读写锁是JDK1.5提供的读写分离锁,可以有效减少所竞争.
+
+|      | 读     | 写   |
+| ---- | ------ | ---- |
+| 读   | 非阻塞 | 阻塞 |
+| 写   | 阻塞   | 阻塞 |
+
+这时多个线程同时读,可以真正并行.当系统读的需求很大的时候,对性能提升很大.
+
+```java
+    private static Lock readLock = reentrantReadWriteLock.readLock();
+    private static Lock writeLock = reentrantReadWriteLock.writeLock();
+```
 
 
 
-### 信号量
+
+
+### 线程阻塞工具类LockSupport
+
+LockSupport是一个非常方便的线程阻塞工具,可以在任意位置让线程阻塞,
+
+`park`和`unpark`方法提供了阻塞和解除阻塞线程的有效方法，并且不会遇到过时方法Thread.suspend和Thread.resume 导致线程变得不可用的问题.
+
+LockSupport对park和unpark的调用顺序并没有要求，先调用unpark，再调用park，依旧可以获得许可，让线程继续运行。这一点与Thread.suspend和Thread.resume以及Object.wait() Object.notify 要求固定的顺序不同。
+
+
+
+和Object.wait()相比,无需先获得锁,也不会抛出InterruptedException异常.
+
+LockSupport的park能够能响应interrupt事件，且不会抛出InterruptedException异常,只是继续执行而已。
+
+#### 方法
+
+##### 暂停执行
+
+```java
+// park方法阻塞的是当前的线程，也就是说在哪个线程中调用，那么哪个线程就被阻塞（在没有获得许可的情况下）。
+public static void park() {
+        UNSAFE.park(false, 0L);
+    } 
+public static void park(Object blocker) {
+        Thread t = Thread.currentThread();
+        setBlocker(t, blocker);
+        UNSAFE.park(false, 0L);
+        setBlocker(t, null);
+    }
+```
+
+支持一个`blocker`对象参数。此对象在线程受阻塞时被记录，以允许监视工具和诊断工具确定线程受阻塞的原因。（这样的工具可以使用方法 `getBlocker(java.lang.Thread)`访问blocker。）建议最好使用这些形式，而不是不带此参数的原始形式。在锁实现中提供的作为`blocker`的普通参数是`this`。
+
+##### 恢复执行
+
+```java
+// 传入一个线程对象.
+public static void unpark(Thread thread) {
+        if (thread != null)
+            UNSAFE.unpark(thread);
+    }
+```
+
+<https://juejin.im/post/5b018f70f265da0b7d0ba86a>
+
+
+
+## 线程池
+
+线程复用,不必总是频繁的创建和销毁.
+
+![image-20190718180035357](assets/concurrent/image-20190718180035357.png)
+
+### 前置
+
+#### Executor接口
+
+```java
+public interface Executor {
+
+    /**
+     * @param command the runnable task
+     * @throws RejectedExecutionException if this task cannot be
+     * accepted for execution
+     * @throws NullPointerException if command is null
+     */
+    void execute(Runnable command);
+}
+```
+
+ExecutorService 接口
+
+```java
+public interface ExecutorService extends Executor {
+ 
+    void shutdown();
+    boolean isShutdown();
+    boolean isTerminated();
+    boolean awaitTermination(long timeout, TimeUnit unit)
+        throws InterruptedException;
+ 
+    Future<?> submit(Runnable task);
+    <T> Future<T> submit(Callable<T> task);
+    <T> Future<T> submit(Runnable task, T result);
+    ......
+}
+```
+
+
+
+Executor是一个顶层接口，在它里面只声明了一个方法execute(Runnable)，返回值为void，参数为Runnable类型，从字面意思可以理解，就是用来执行传进去的任务的；
+
+然后ExecutorService接口继承了Executor接口，并声明了一些方法：submit、invokeAll、invokeAny以及shutDown等；
+
+抽象类AbstractExecutorService实现了ExecutorService接口，基本实现了ExecutorService中声明的所有方法；
+
+然后ThreadPoolExecutor继承了类AbstractExecutorService。
+
+
+
+https://www.cnblogs.com/dolphin0520/p/3932921.html
+
+https://github.com/ZHENFENG13/concurrent-programming/blob/master/src/chapter3/ThreadPoolDemo.java
+
+https://segmentfault.com/a/1190000015808897
+
+### Excuters
+
+不建议使用,会屏蔽细节.
+
+
+
+### ThreadPoolExcutor
+
+```java
+public class ThreadPoolExecutor extends AbstractExecutorService {
+ public ThreadPoolExecutor(int corePoolSize,
+                           int maximumPoolSize,
+                           long keepAliveTime,
+                           TimeUnit unit,
+                           BlockingQueue<Runnable> workQueue,
+                           ThreadFactory threadFactory,
+                           RejectedExecutionHandler handler);
+}
+```
 
 
 
 
+
+#### 参数
+
+#### 拒绝策略
 
 
 
@@ -386,8 +699,6 @@ ConcurrentHashMap的分段锁
 
 
 #### 锁粗化
-
-
 
 
 
