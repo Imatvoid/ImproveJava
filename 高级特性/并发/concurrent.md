@@ -12,7 +12,7 @@
 
 一个线程修改了共享变量的值,其他线程能够立即知道
 
-![1561796662802](concurrent/1561796662802.png)
+![1561796662802](./assets/concurrent/1561796662802.png)
 
 
 
@@ -31,7 +31,7 @@
 ### 线程状态
 
 
-![image-20190629141808810](./concurrent/image-20190629141808810.png)
+![image-20190629141808810](./assets/concurrent/image-20190629141808810.png)
 
 ### 新建线程
 
@@ -172,6 +172,54 @@ public static native void yield()
 
 
 
+## 锁
+
+### 提高锁性能的几个建议
+
+#### 尽可能减少持有锁的时间
+
+锁的范围尽量小
+
+#### 减小锁的粒度
+
+ConcurrentHashMap的分段锁
+
+#### 读写分离锁替换独占锁
+
+
+
+#### 锁分离
+
+
+
+
+
+#### 锁粗化
+
+
+
+
+
+
+
+### java虚拟机对锁优化做的努力
+
+#### 偏向锁
+
+在几乎没有竞争的场景表现很好,在竞争激烈的场合不如不用
+
+#### 轻量级锁
+
+#### 自旋锁
+
+### 无锁
+
+
+
+
+
+### 死锁
+
 
 
 ## synchronized同步
@@ -301,6 +349,10 @@ CountDownLatch end = new CountDownLatch(10);
 ### 循环栅栏CyclicBarrier
 
 和CountDownLatch 很类似,但功能更加强大
+
+CountDownLatch的计数器只能使用一次,而CyclicBarrier的计数器可以使用reset()方法重
+置。所以CyclicBarrier能处理更为复杂的业务场景。例如,如果计算发生错误,可以重置计数
+器,并让线程重新执行一次。
 
 ![image-20190718155336625](assets/concurrent/image-20190718155336625.png)
 
@@ -587,6 +639,134 @@ public static void unpark(Thread thread) {
 
 
 
+## Future模式
+
+Future模式有点类似在网上买东西。如果我们在网上下单买了一部手机，当我们支付完成后，手机并没有办法立即送到家里，但是在电脑上会立即产生一个订单。这个订单就是将来发货或者领取手机的重要凭证，这个凭证也就是Future模式中会给出的一个契约。在支付活动结束后，大家不会傻傻地等着手机到来，而是各忙各的。而这张订单就成了商家的动力.
+
+future模式无法立即给你数据,但允许你拿到一个契约,你可以将来通过契约拿到你想要的数据.
+
+### JDK的Future
+
+#### 接口Future<V>
+
+提供了如下功能:
+
+　　1）判断任务是否完成；
+
+　　2）能够中断任务；
+
+　　3）能够获取任务执行结果。
+
+```java
+// 一个立即返回的契约
+public interface Future<V> {
+
+    // 取消任务 mayInterruptIfRunning决定已经开始的任务时中断还是可以继续完成
+    // 如果任务已经完成,则无论mayInterruptIfRunning为true还是false，此方法肯定返回false
+    // 如果任务还没开始,返回true
+    boolean cancel(boolean mayInterruptIfRunning);
+
+    boolean isCancelled();
+
+    // 正常地结束,异常结束,或者被取消,返回true
+    boolean isDone();
+
+    // 阻塞住,还可能抛出运行时异常CancellationException
+    V get() throws InterruptedException, ExecutionException;
+
+  
+    V get(long timeout, TimeUnit unit)
+        throws InterruptedException, ExecutionException, TimeoutException;
+}
+```
+
+#### 接口Callable<V>
+
+这是一个类似**Runnable**的接口.但有返回值,可以抛出异常.
+
+Callable里面的call方法是可以抛出异常的，我们可以捕获异常进行处理；但是Runnable里面的run方法是不可以抛出异常的，异常要在run方法内部必须得到处理，不能向外界抛出；
+
+```java
+Runnable r = new Runnable() {
+            @Override
+            public void run() throws  Exception{
+                // 会报错,只能抛出运行时异常.
+                throw new Exception();
+                //throw new RuntimeException();
+               
+            }
+        };
+```
+
+```java
+@FunctionalInterface
+public interface Callable<V> {
+    /**
+     * Computes a result, or throws an exception if unable to do so.
+     *
+     * @return computed result
+     * @throws Exception if unable to compute a result
+     */
+    V call() throws Exception;
+}
+```
+
+
+
+#### 具体实现FutureTask<V>
+
+```java
+public class FutureTask<V> implements RunnableFuture<V>
+```
+
+FutureTask类实现了RunnableFuture接口，我们看一下RunnableFuture接口的实现：
+
+```java
+public interface RunnableFuture<V> extends Runnable, Future<V> {
+    void run();
+}
+```
+
+可以看出RunnableFuture继承了Runnable接口和Future接口，而FutureTask实现了RunnableFuture接口。**所以它既可以作为Runnable被线程执行，又可以作为Future得到Callable的返回值**。
+
+FutureTask提供了2个构造器：
+
+```java
+`public` `FutureTask(Callable<V> callable) {``}``public` `FutureTask(Runnable runnable, V result) {``}`
+```
+
+事实上，FutureTask是Future接口的一个唯一实现类。
+
+#### 参考
+
+<https://www.cnblogs.com/dolphin0520/p/3949310.html>
+
+https://www.cnblogs.com/cz123/p/7693064.html
+
+### Guava对Future的支持
+
+在JDK自带的简单 Future 模式中，虽然我们可以使用 Future.get()方法得到 Future 的处理结果，但是这个方法是阻塞的，因此并不利于我们开发高并发应用。但在 Guava 中，增强了 Future 模式，增加了对 Future 模式完成时的回调接口，使得 Future 完成时可以自动通知应用程序进行后续处理。
+
+```java
+ListeningExecutorService listeningExecutorService = MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(10));
+
+        ListenableFuture<String> future = listeningExecutorService.submit(() -> "hello");
+
+        Futures.addCallback(future, new FutureCallback<String>() {
+            @Override
+            public void onSuccess(@Nullable String s) {
+                System.out.println("处理成功");
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+                System.out.println("处理失败" + throwable);
+            }
+        }, MoreExecutors.newDirectExecutorService());
+```
+
+
+
 ## 线程池
 
 线程复用,不必总是频繁的创建和销毁.
@@ -610,7 +790,7 @@ public interface Executor {
 }
 ```
 
-ExecutorService 接口
+#### ExecutorService 接口
 
 ```java
 public interface ExecutorService extends Executor {
@@ -620,10 +800,9 @@ public interface ExecutorService extends Executor {
     boolean isTerminated();
     boolean awaitTermination(long timeout, TimeUnit unit)
         throws InterruptedException;
- 
+    // 如果为了可取消性而使用 Future 但又不提供可用的结果，则可以声明 Future<?> 形式类型、并返回 null 作为底层任务的结果。
     Future<?> submit(Runnable task);
     <T> Future<T> submit(Callable<T> task);
-    <T> Future<T> submit(Runnable task, T result);
     ......
 }
 ```
@@ -636,23 +815,18 @@ Executor是一个顶层接口，在它里面只声明了一个方法execute(Runn
 
 抽象类AbstractExecutorService实现了ExecutorService接口，基本实现了ExecutorService中声明的所有方法；
 
+```java
+    protected <T> RunnableFuture<T> newTaskFor(Callable<T> callable) { };
+    public Future<?> submit(Runnable task) {};
+```
+
 然后ThreadPoolExecutor继承了类AbstractExecutorService。
 
 
 
-https://www.cnblogs.com/dolphin0520/p/3932921.html
-
-https://github.com/ZHENFENG13/concurrent-programming/blob/master/src/chapter3/ThreadPoolDemo.java
-
-https://segmentfault.com/a/1190000015808897
-
-### Excuters
-
-不建议使用,会屏蔽细节.
-
-
-
 ### ThreadPoolExcutor
+
+
 
 ```java
 public class ThreadPoolExecutor extends AbstractExecutorService {
@@ -666,39 +840,373 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
 }
 ```
 
-
-
-
-
 #### 参数
+
+**corePoolSize：** 线程池核心线程数最大值
+
+**maximumPoolSize：** 线程池最大线程数大小
+
+**keepAliveTime：** 线程池中非核心线程空闲的存活时间大小
+
+**unit：** 线程空闲存活时间单位
+
+**workQueue：** 存放任务的阻塞队列
+
+**threadFactory：** 用于设置创建线程的工厂，可以给创建的线程设置有意义的名字，可方便排查问题。
+
+**handler：**  线城池的饱和策略事件，主要有四种类型。
+
+#### 线程使用策略
+
+![image-20190719153527434](assets/concurrent/image-20190719153527434.png)
 
 #### 拒绝策略
 
+- AbortPolicy(抛出一个异常，默认的)
 
+- DiscardPolicy(直接丢弃任务)
 
-## 锁
+- DiscardOldestPolicy（丢弃队列里最老的任务，将当前这个任务继续提交给线程池）
 
-### 提高锁性能的几个建议
-
-#### 尽可能减少持有锁的时间
-
-锁的范围尽量小
-
-#### 减小锁的粒度
-
-ConcurrentHashMap的分段锁
-
-#### 读写分离锁替换独占锁
-
-
-
-#### 锁分离
+- CallerRunsPolicy（交给线程池调用所在的线程进行处理)
 
 
 
 
 
-#### 锁粗化
+#### 异常处理
+
+默认是无法感知异常的.
+
+```java
+ExecutorService threadPool = Executors.newFixedThreadPool(5);
+        for (int i = 0; i < 5; i++) {
+            threadPool.submit(() -> {
+                System.out.println("current thread name" + Thread.currentThread().getName());
+                Object object = null;
+                System.out.print("result## " + object.toString());
+            });
+        }
+```
+
+##### 1.使用try catch
+
+```java
+ExecutorService threadPool = Executors.newFixedThreadPool(5);
+for (int i = 0; i < 5; i++) {
+            threadPool.submit(() -> {
+                System.out.println("current thread name" + Thread.currentThread().getName());
+                try{
+                    Object object = null;
+                    System.out.print("result## " + object.toString());
+                }catch (Exception e){
+                    // 可以感知.
+                    System.out.println(Thread.currentThread().getName()+"异常");
+                    // 线程可以继续复用.
+                    throw  new RuntimeException(Thread.currentThread().getName()+"异常");
+                }
+            });
+        }
+```
+
+##### 2. 使用Future.get方法.
+
+```java
+ ExecutorService threadPool = Executors.newFixedThreadPool(5);
+ for (int i = 0; i < 5; i++) {
+            Future future = threadPool.submit(() -> {
+                System.out.println("current thread name" + Thread.currentThread().getName());
+                Object object = null;
+                System.out.print("result## " + object.toString());
+            });
+            try {
+                future.get();
+            } catch (Exception e) {
+                System.out.println(Thread.currentThread().getName() + "异常");
+                //终止主线程
+                throw new RuntimeException(Thread.currentThread().getName() + "异常");
+            }
+        }
+```
+
+##### 3.为工作者线程设置UncaughtExceptionHandler，在uncaughtException方法中处理异常
+
+自定义ThreadFactory.
+
+```java
+ ExecutorService threadPool = Executors.newFixedThreadPool(1, r -> {
+            Thread t = new Thread(r);
+            t.setUncaughtExceptionHandler(
+                    (t1, e) -> {
+                        System.out.println(t1.getName() + "线程抛出的异常"+e);
+                        //throw new RuntimeException();
+                    });
+            return t;
+        });
+        threadPool.execute(()->{
+            Object object = null;
+            System.out.print("result## " + object.toString());
+        });
+```
+
+##### 4.重写ThreadPoolExecutor的afterExecute方法，处理传递的异常引用
+
+```java
+class ExtendedExecutor extends ThreadPoolExecutor {
+
+        public ExtendedExecutor(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit, BlockingQueue<Runnable> workQueue) {
+            super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue);
+        }
+
+        // jdk文档里面给的例子。。
+        protected void afterExecute(Runnable r, Throwable t) {
+            super.afterExecute(r, t);
+            if (t == null && r instanceof Future<?>) {
+                try {
+                    Object result = ((Future<?>) r).get();
+                } catch (CancellationException ce) {
+                    t = ce;
+                } catch (ExecutionException ee) {
+                    t = ee.getCause();
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt(); // ignore/reset
+                }
+            }
+            if (t != null)
+                System.out.println(t);
+        }
+    }
+```
+
+#### 工作队列
+
+- ArrayBlockingQueue
+- LinkedBlockingQueue
+- DelayQueue
+- PriorityBlockingQueue
+- SynchronousQueue
+
+##### ArrayBlockingQueue
+
+ArrayBlockingQueue（有界队列）是一个用数组实现的有界阻塞队列，按FIFO排序量。
+
+##### LinkedBlockingQueue
+
+LinkedBlockingQueue（可设置容量队列）基于链表结构的阻塞队列，按FIFO排序任务，容量可以选择进行设置，不设置的话，将是一个无边界的阻塞队列，最大长度为Integer.MAX_VALUE，吞吐量通常要高于ArrayBlockingQuene；newFixedThreadPool线程池使用了这个队列
+
+##### DelayQueue
+
+DelayQueue（延迟队列）是一个任务定时周期的延迟执行的队列。根据指定的执行时间从小到大排序，否则根据插入到队列的先后排序。newScheduledThreadPool线程池使用了这个队列。
+
+
+
+##### PriorityBlockingQueue
+
+PriorityBlockingQueue（优先级队列）是具有优先级的无界阻塞队列；
+
+
+
+##### SynchronousQueue
+
+SynchronousQueue（同步队列）一个不存储元素的阻塞队列，每个插入操作必须等到另一个线程调用移除操作，否则插入操作一直处于阻塞状态，吞吐量通常要高于LinkedBlockingQuene，newCachedThreadPool线程池使用了这个队列。
+
+
+
+#### 常用的线程池
+
+newFixedThreadPool (固定数目线程的线程池)
+
+newSingleThreadExecutor(单线程的线程池)
+
+newCachedThreadPool(可缓存线程的线程池)
+
+newScheduledThreadPool(定时及周期执行的线程池)
+
+
+
+
+
+##### newFixedThreadPool
+
+```java
+  public static ExecutorService newFixedThreadPool(int nThreads, ThreadFactory threadFactory) {
+        return new ThreadPoolExecutor(nThreads, nThreads,
+                                      0L, TimeUnit.MILLISECONDS,
+                                      new LinkedBlockingQueue<Runnable>(),
+                                      threadFactory);
+    }
+```
+
+线程池特点：
+
+- 核心线程数和最大线程数大小一样
+- 没有所谓的非空闲时间，即keepAliveTime为0
+- 阻塞队列为无界队列LinkedBlockingQueue
+
+
+
+工作机制:
+
+![image-20190719173649356](assets/concurrent/image-20190719173649356.png)
+
+**使用无界队列的线程池会导致内存飙升吗？**
+
+答案 **：会的，newFixedThreadPool使用了无界的阻塞队列LinkedBlockingQueue，如果线程获取一个任务后，任务的执行时间比较长(比如，上面demo设置了10秒)，会导致队列的任务越积越多，导致机器内存使用不停飙升，** 最终导致OOM。
+
+使用场景
+
+FixedThreadPool 适用于处理CPU密集型的任务，确保CPU在长期被工作线程使用的情况下，尽可能的少的分配线程，即适用执行长期的任务。
+
+
+
+##### newCachedThreadPool
+
+```java
+public static ExecutorService newCachedThreadPool(ThreadFactory threadFactory) {
+        return new ThreadPoolExecutor(0, Integer.MAX_VALUE,
+                                      60L, TimeUnit.SECONDS,
+                                      new SynchronousQueue<Runnable>(),
+                                      threadFactory);
+    }
+```
+
+**线程池特点**：
+
+- 核心线程数为0
+- 最大线程数为Integer.MAX_VALUE
+- 阻塞队列是SynchronousQueue
+- 非核心线程空闲存活时间为60秒
+
+当提交任务的速度大于处理任务的速度时，每次提交一个任务，就必然会创建一个线程。极端情况下会创建过多的线程，耗尽 CPU 和内存资源。由于空闲 60 秒的线程会被终止，长时间保持空闲的 CachedThreadPool 不会占用任何资源。
+
+**工作机制**
+
+![image-20190719173755826](assets/concurrent/image-20190719173755826.png)
+
+提交任务
+
+因为没有核心线程，所以任务直接加到SynchronousQueue队列。
+
+判断是否有空闲线程，如果有，就去取出任务执行。
+
+如果没有空闲线程，就新建一个线程执行。
+
+执行完任务的线程，还可以存活60秒，如果在这期间，接到任务，可以继续活下去；否则，被销毁。
+
+**使用场景**
+
+用于并发执行大量短期的小任务。
+
+
+
+##### newSingleThreadExecutor
+
+```java
+public static ExecutorService newSingleThreadExecutor(ThreadFactory threadFactory) {
+        return new FinalizableDelegatedExecutorService
+            (new ThreadPoolExecutor(1, 1,
+                                    0L, TimeUnit.MILLISECONDS,
+                                    new LinkedBlockingQueue<Runnable>(),
+                                    threadFactory));
+    }
+
+```
+
+**线程池特点**
+
+- 核心线程数为1
+- 最大线程数也为1
+- 阻塞队列是LinkedBlockingQueue
+- keepAliveTime为0
+
+
+
+**工作机制**
+
+![image-20190719174117371](assets/concurrent/image-20190719174117371.png)
+
+
+
+- 提交任务
+- 线程池是否有一条线程在，如果没有，新建线程执行任务
+- 如果有，讲任务加到阻塞队列
+- 当前的唯一线程，从队列取任务，执行完一个，再继续取，一个人（一条线程）夜以继日地干活。
+
+使用场景
+
+适用于串行执行任务的场景，一个任务一个任务地执行。
+
+##### newScheduledThreadPool
+
+
+
+```java
+ public ScheduledThreadPoolExecutor(int corePoolSize) {
+        super(corePoolSize, Integer.MAX_VALUE, 0, NANOSECONDS,
+              new DelayedWorkQueue());
+    }
+
+```
+
+
+
+**线程池特点**
+
+- 最大线程数为Integer.MAX_VALUE
+- 阻塞队列是DelayedWorkQueue
+- keepAliveTime为0
+- scheduleAtFixedRate() ：按某种速率周期执行
+- scheduleWithFixedDelay()：在某个延迟后执行
+
+
+
+**工作机制**
+
+- 添加一个任务
+- 线程池中的线程从 DelayQueue 中取任务
+- 线程从 DelayQueue 中获取 time 大于等于当前时间的task
+- 执行完后修改这个 task 的 time 为下次被执行的时间
+- 这个 task 放回DelayQueue队列中
+
+```java
+/**
+    创建一个给定初始延迟的间隔性的任务，之后的下次执行时间是上一次任务从执行到结束所需要的时间+给定的间隔时间
+    */
+    ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
+        scheduledExecutorService.scheduleWithFixedDelay(()->{
+            System.out.println("current Time" + System.currentTimeMillis());
+            System.out.println(Thread.currentThread().getName()+"正在执行");
+        }, 1, 3, TimeUnit.SECONDS);
+
+  /**
+    创建一个给定初始延迟的间隔性的任务，之后的每次任务执行时间为 初始延迟 + N * delay(间隔) 
+    */
+    ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
+            scheduledExecutorService.scheduleAtFixedRate(()->{
+            System.out.println("current Time" + System.currentTimeMillis());
+            System.out.println(Thread.currentThread().getName()+"正在执行");
+        }, 1, 3, TimeUnit.SECONDS);;
+
+```
+
+#### 使用场景
+
+周期性执行任务的场景，需要限制线程数量的场景
+
+回到面试题：**说说几种常见的线程池及使用场景？**
+
+回答这四种经典线程池 **：newFixedThreadPool，newSingleThreadExecutor，newCachedThreadPool，newScheduledThreadPool，分线程池特点，工作机制，使用场景分开描述，再分析可能存在的问题，比如newFixedThreadPool内存飙升问题** 即可
+
+
+
+
+#### execute方法和submit方法
+
+
+
+execute()方法实际上是Executor接口中声明的方法，在ThreadPoolExecutor进行了具体的实现，这个方法是ThreadPoolExecutor的核心方法，通过这个方法可以向线程池提交一个任务，交由线程池去执行。
+
+submit()方法是在ExecutorService中声明的方法，在AbstractExecutorService就已经有了具体的实现，在ThreadPoolExecutor中并没有对其进行重写，这个方法也是用来向线程池提交任务的，但是它和execute()方法不同，它能够返回任务执行的结果，去看submit()方法的实现，会发现它实际上还是调用的execute()方法，只不过它利用了Future来获取任务执行结果（Future相关内容将在下一篇讲述）。
 
 
 
@@ -706,27 +1214,17 @@ ConcurrentHashMap的分段锁
 
 
 
-### java虚拟机对锁优化做的努力
-
-#### 偏向锁
-
-在几乎没有竞争的场景表现很好,在竞争激烈的场合不如不用
 
 
+UncaughtExceptionHandler只对execute提交有作用.
 
-#### 轻量级锁
+#### 参考
 
+<https://juejin.im/post/5d1882b1f265da1ba84aa676>  比喻很好
 
+<https://www.cnblogs.com/dolphin0520/p/3932921.html>
 
-
-
-
-
-#### 自旋锁
-
-
-
-### 无锁
+<https://segmentfault.com/a/1190000015808897>
 
 
 
@@ -734,7 +1232,26 @@ ConcurrentHashMap的分段锁
 
 
 
-### 死锁
+
+
+
+
+
+
+
+### Excuters
+
+不建议使用,会屏蔽细节.
+
+
+
+
+
+
+
+
+
+
 
 
 
