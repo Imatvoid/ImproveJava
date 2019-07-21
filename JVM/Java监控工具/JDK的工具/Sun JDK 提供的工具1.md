@@ -1,17 +1,4 @@
-##### jps 
 
-> jps ( JVM Process Status)
-
- jps可以列出jvm进程lvmid，主类类名，main函数参数, jvm参数，jar名称等信息。
-
-```shell
-jps [options] [hostid]
-```
-
-- -p  只id
-- -m 输出主函数传入的参数
-- -l   输出应用程序主类完整package名称或jar完整名称
-- -v: 列出jvm参数, -Xms20m -Xmx50m是启动程序指定的jvm参数
 
 
 
@@ -34,7 +21,7 @@ jstat [option vmid [interval [s|ms] [count]]   ]
 jstat -gc 2764 250 20  #查询进程2764垃圾收集情况 250ms一次  一共20次
 ```
  结果：
- 
+
 ![1546691943277](assets/1546691943277.png)
 
 option选项代表着用户希望查询的虚拟机信息，主要分为3类：类加载、垃圾收集和运行期编译状况。具体选项见下图：

@@ -212,15 +212,20 @@ ConcurrentHashMap的分段锁
 
 #### 自旋锁
 
+#### 重量级锁
+
+
+
 ### 无锁
-
-
 
 
 
 ### 死锁
 
-
+- 不可剥夺
+- 资源独占
+- 请求和保持
+- 循环等待
 
 ## synchronized同步
 
@@ -230,6 +235,80 @@ ConcurrentHashMap的分段锁
 
 - 指定加锁对象(类,实例)
 - 作用于方法(静态方法,实例方法)
+
+### synchronized 锁的种类
+
+ synchronized锁的状态总共有四种，无锁状态、偏向锁、轻量级锁和重量级锁。随着锁的竞争，锁可以从偏向锁升级到轻量级锁，再升级的重量级锁，但是锁的升级是单向的，也就是说只能从低到高升级，不会出现锁的降级.
+
+
+
+  synchronized的偏向锁、轻量级锁以及重量级锁是通过Java对象头实现的。
+
+![1563613176353](assets/concurrent/1563613176353.png)
+
+
+
+Java对象的内存布局分为：
+
+- 对象头
+- 实例数据
+- 对齐填充.
+
+对象头又可以分为”Mark Word”和类型指针klass。”Mark Word”是关键，默认情况下，其存储对象的HashCode、分代年龄和锁标记位。
+
+![1563614449902](assets/concurrent/1563614449902.png)
+
+
+
+#### 偏向锁
+
+jdk6后引入
+
+**优化思路**
+
+​       经过研究发现，在大多数情况下，锁不仅不存在多线程竞争，而且**总是由同一线程多次获得**，因此为了减少同一线程获取锁(会涉及到一些CAS操作,耗时)的代价而引入偏向锁。
+
+**核心思想**
+
+​      如果一个线程获得了锁，那么锁就进入偏向模式，此时Mark Word 的结构也变为偏向锁结构，当这个线程再次请求锁时，无需再做任何同步操作，即获取锁的过程，这样就省去了大量有关锁申请的操作，从而也就提供程序的性能.
+
+**具体操作**
+
+​       当锁对象第一次被线程获取的时候，线程使用CAS操作把这个锁的线程ID记录再对象Mark Word之中，同时置偏向标志位1。以后该线程在进入和退出同步块时不需要进行CAS操作来加锁和解锁，只需要简单地测试一下对象头的Mark Word里是否存储着指向当前线程的偏向锁。如果测试成功，表示线程已经获得了锁。
+
+​       如果线程使用CAS操作时失败则表示该锁对象上存在竞争并且这个时候另外一个线程获得偏向锁的所有权。当到达全局安全点（safepoint，这个时间点上没有正在执行的字节码）时获得偏向锁的线程被挂起，膨胀为轻量级锁（涉及Monitor Record，Lock Record相关操作，这里不展开），同时被撤销偏向锁的线程继续往下执行同步代码。
+
+​        **当有另外一个线程去尝试获取这个锁时，偏向模式就宣告结束。**
+
+​        所以，对于没有锁竞争的场合，偏向锁有很好的优化效果，毕竟极有可能连续多次是同一个线程申请相同的锁。但是对于锁竞争比较激烈的场合，偏向锁就失效了，因为这样场合极有可能每次申请锁的线程都是不相同的，因此这种场合下不应该使用偏向锁，否则会得不偿失，需要注意的是，偏向锁失败后，并不会立即膨胀为重量级锁，而是先升级为轻量级锁。下面我们接着了解轻量级锁。
+
+#### 轻量级锁
+
+**优化思路**
+
+即使锁不是总是由一个线程获得,存在竞争.但是这种竞争可能是交替的.
+
+对于绝大部分的锁，在整个同步周期内都是不存在竞争的（区别于偏向锁）。这是一个经验数据。如果没有竞争，轻量级锁使用CAS操作避免了使用互斥量的开销，但如果存在锁竞争，除了互斥量的开销外，还额外发生了CAS操作，因此在有竞争的情况下，轻量级锁比传统的重量级锁更慢。
+
+
+
+**轻量级锁加锁**
+
+
+
+
+
+**轻量级锁解锁**
+
+
+
+
+
+#### 自旋转锁
+
+
+
+#### 重量级锁
 
 
 
@@ -840,7 +919,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
 }
 ```
 
-#### 参数
+#### 核心参数
 
 **corePoolSize：** 线程池核心线程数最大值
 
@@ -869,6 +948,254 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
 - DiscardOldestPolicy（丢弃队列里最老的任务，将当前这个任务继续提交给线程池）
 
 - CallerRunsPolicy（交给线程池调用所在的线程进行处理)
+
+
+
+#### 工作队列
+
+- ArrayBlockingQueue
+- LinkedBlockingQueue
+- DelayQueue
+- PriorityBlockingQueue
+- SynchronousQueue
+
+##### ArrayBlockingQueue
+
+ArrayBlockingQueue（有界队列）是一个用数组实现的有界阻塞队列，按FIFO排序量。
+
+##### LinkedBlockingQueue
+
+LinkedBlockingQueue（可设置容量队列）基于链表结构的阻塞队列，按FIFO排序任务，容量可以选择进行设置，不设置的话，将是一个无边界的阻塞队列，最大长度为Integer.MAX_VALUE，吞吐量通常要高于ArrayBlockingQuene；newFixedThreadPool线程池使用了这个队列
+
+##### DelayQueue
+
+DelayQueue（延迟队列）是一个任务定时周期的延迟执行的队列。根据指定的执行时间从小到大排序，否则根据插入到队列的先后排序。newScheduledThreadPool线程池使用了这个队列。
+
+
+
+##### PriorityBlockingQueue
+
+PriorityBlockingQueue（优先级队列）是具有优先级的无界阻塞队列；
+
+
+
+##### SynchronousQueue
+
+SynchronousQueue（同步队列）一个不存储元素的阻塞队列，每个插入操作必须等到另一个线程调用移除操作，否则插入操作一直处于阻塞状态，吞吐量通常要高于LinkedBlockingQuene，newCachedThreadPool线程池使用了这个队列。
+
+
+
+#### 常用的线程池
+
+newFixedThreadPool (固定数目线程的线程池)
+
+newSingleThreadExecutor(单线程的线程池)
+
+newCachedThreadPool(可缓存线程的线程池)
+
+newScheduledThreadPool(定时及周期执行的线程池)
+
+
+
+
+
+##### newFixedThreadPool
+
+```java
+  public static ExecutorService newFixedThreadPool(int nThreads, ThreadFactory threadFactory) {
+        return new ThreadPoolExecutor(nThreads, nThreads,
+                                      0L, TimeUnit.MILLISECONDS,
+                                      new LinkedBlockingQueue<Runnable>(),
+                                      threadFactory);
+    }
+```
+
+线程池特点：
+
+- 核心线程数和最大线程数大小一样
+- 没有所谓的非空闲时间，即keepAliveTime为0
+- 阻塞队列为无界队列LinkedBlockingQueue
+
+
+
+工作机制:
+
+![image-20190719173649356](assets/concurrent/image-20190719173649356.png)
+
+**使用无界队列的线程池会导致内存飙升吗？**
+
+答案 **：会的，newFixedThreadPool使用了无界的阻塞队列LinkedBlockingQueue，如果线程获取一个任务后，任务的执行时间比较长(比如，上面demo设置了10秒)，会导致队列的任务越积越多，导致机器内存使用不停飙升，** 最终导致OOM。
+
+使用场景
+
+FixedThreadPool 适用于处理CPU密集型的任务，确保CPU在长期被工作线程使用的情况下，尽可能的少的分配线程，即适用执行长期的任务。
+
+
+
+
+
+##### newSingleThreadExecutor
+
+```java
+public static ExecutorService newSingleThreadExecutor(ThreadFactory threadFactory) {
+        return new FinalizableDelegatedExecutorService
+            (new ThreadPoolExecutor(1, 1,
+                                    0L, TimeUnit.MILLISECONDS,
+                                    new LinkedBlockingQueue<Runnable>(),
+                                    threadFactory));
+    }
+
+```
+
+**线程池特点**
+
+- 核心线程数为1
+- 最大线程数也为1
+- 阻塞队列是LinkedBlockingQueue
+- keepAliveTime为0
+
+
+
+**工作机制**
+
+![image-20190719174117371](assets/concurrent/image-20190719174117371.png)
+
+
+
+- 提交任务
+- 线程池是否有一条线程在，如果没有，新建线程执行任务
+- 如果有，讲任务加到阻塞队列
+- 当前的唯一线程，从队列取任务，执行完一个，再继续取，一个人（一条线程）夜以继日地干活。
+
+使用场景
+
+适用于串行执行任务的场景，一个任务一个任务地执行。
+
+
+
+##### newCachedThreadPool
+
+```java
+public static ExecutorService newCachedThreadPool(ThreadFactory threadFactory) {
+        return new ThreadPoolExecutor(0, Integer.MAX_VALUE,
+                                      60L, TimeUnit.SECONDS,
+                                      new SynchronousQueue<Runnable>(),
+                                      threadFactory);
+    }
+```
+
+**线程池特点**：
+
+- 核心线程数为0
+- 最大线程数为Integer.MAX_VALUE
+- 阻塞队列是SynchronousQueue
+- 非核心线程空闲存活时间为60秒
+
+当提交任务的速度大于处理任务的速度时，每次提交一个任务，就必然会创建一个线程。极端情况下会创建过多的线程，耗尽 CPU 和内存资源。由于空闲 60 秒的线程会被终止，长时间保持空闲的 CachedThreadPool 不会占用任何资源。
+
+**工作机制**
+
+![image-20190719173755826](../../../../../../%E6%96%87%E6%A1%A3/%E6%88%91%E7%9A%84%E5%9D%9A%E6%9E%9C%E4%BA%91/typora/ImproveJava/%E9%AB%98%E7%BA%A7%E7%89%B9%E6%80%A7/%E5%B9%B6%E5%8F%91/assets/concurrent/image-20190719173755826.png)
+
+提交任务
+
+因为没有核心线程，所以任务直接加到SynchronousQueue队列。
+
+判断是否有空闲线程，如果有，就去取出任务执行。
+
+如果没有空闲线程，就新建一个线程执行。
+
+执行完任务的线程，还可以存活60秒，如果在这期间，接到任务，可以继续活下去；否则，被销毁。
+
+**使用场景**
+
+用于并发执行大量短期的小任务。
+
+
+
+
+
+
+
+##### newScheduledThreadPool
+
+
+
+```java
+ public ScheduledThreadPoolExecutor(int corePoolSize) {
+        super(corePoolSize, Integer.MAX_VALUE, 0, NANOSECONDS,
+              new DelayedWorkQueue());
+    }
+
+```
+
+
+
+**线程池特点**
+
+- 最大线程数为Integer.MAX_VALUE
+- 阻塞队列是DelayedWorkQueue
+- keepAliveTime为0
+- scheduleAtFixedRate() ：按某种速率周期执行
+- scheduleWithFixedDelay()：在某个延迟后执行
+
+
+
+**工作机制**
+
+- 添加一个任务
+- 线程池中的线程从 DelayQueue 中取任务
+- 线程从 DelayQueue 中获取 time 大于等于当前时间的task
+- 执行完后修改这个 task 的 time 为下次被执行的时间
+- 这个 task 放回DelayQueue队列中
+
+```java
+/**
+    创建一个给定初始延迟的间隔性的任务，之后的下次执行时间是上一次任务从执行到结束所需要的时间+给定的间隔时间
+    */
+    ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
+        scheduledExecutorService.scheduleWithFixedDelay(()->{
+            System.out.println("current Time" + System.currentTimeMillis());
+            System.out.println(Thread.currentThread().getName()+"正在执行");
+        }, 1, 3, TimeUnit.SECONDS);
+
+  /**
+    创建一个给定初始延迟的间隔性的任务，之后的每次任务执行时间为 初始延迟 + N * delay(间隔) 
+    */
+    ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
+            scheduledExecutorService.scheduleAtFixedRate(()->{
+            System.out.println("current Time" + System.currentTimeMillis());
+            System.out.println(Thread.currentThread().getName()+"正在执行");
+        }, 1, 3, TimeUnit.SECONDS);;
+
+```
+
+![1563592451739](./assets/concurrent/1563592451739.png)
+
+注意一旦其中一次任务出现异常,后边所有子任务的调度,都会停止,所以做好异常处理很重要.
+
+**使用场景**
+
+周期性执行任务的场景，需要限制线程数量的场景,
+
+回到面试题：**说说几种常见的线程池及使用场景？**
+
+回答这四种经典线程池 **：newFixedThreadPool，newSingleThreadExecutor，newCachedThreadPool，newScheduledThreadPool，分线程池特点，工作机制，使用场景分开描述，再分析可能存在的问题，比如newFixedThreadPool内存飙升问题** 即可
+
+
+
+
+#### execute方法和submit方法
+
+execute()方法实际上是Executor接口中声明的方法，在ThreadPoolExecutor进行了具体的实现，这个方法是ThreadPoolExecutor的核心方法，通过这个方法可以向线程池提交一个任务，交由线程池去执行。
+
+submit()方法是在ExecutorService中声明的方法，在AbstractExecutorService就已经有了具体的实现，在ThreadPoolExecutor中并没有对其进行重写，这个方法也是用来向线程池提交任务的，但是它和execute()方法不同，它能够返回任务执行的结果，去看submit()方法的实现，会发现它实际上还是调用的execute()方法，只不过它利用了Future来获取任务执行结果（Future相关内容将在下一篇讲述）。
+
+
+
+#### 拓展线程池
+
+
 
 
 
@@ -978,241 +1305,17 @@ class ExtendedExecutor extends ThreadPoolExecutor {
     }
 ```
 
-#### 工作队列
 
-- ArrayBlockingQueue
-- LinkedBlockingQueue
-- DelayQueue
-- PriorityBlockingQueue
-- SynchronousQueue
 
-##### ArrayBlockingQueue
 
-ArrayBlockingQueue（有界队列）是一个用数组实现的有界阻塞队列，按FIFO排序量。
 
-##### LinkedBlockingQueue
 
-LinkedBlockingQueue（可设置容量队列）基于链表结构的阻塞队列，按FIFO排序任务，容量可以选择进行设置，不设置的话，将是一个无边界的阻塞队列，最大长度为Integer.MAX_VALUE，吞吐量通常要高于ArrayBlockingQuene；newFixedThreadPool线程池使用了这个队列
 
-##### DelayQueue
 
-DelayQueue（延迟队列）是一个任务定时周期的延迟执行的队列。根据指定的执行时间从小到大排序，否则根据插入到队列的先后排序。newScheduledThreadPool线程池使用了这个队列。
 
 
 
-##### PriorityBlockingQueue
-
-PriorityBlockingQueue（优先级队列）是具有优先级的无界阻塞队列；
-
-
-
-##### SynchronousQueue
-
-SynchronousQueue（同步队列）一个不存储元素的阻塞队列，每个插入操作必须等到另一个线程调用移除操作，否则插入操作一直处于阻塞状态，吞吐量通常要高于LinkedBlockingQuene，newCachedThreadPool线程池使用了这个队列。
-
-
-
-#### 常用的线程池
-
-newFixedThreadPool (固定数目线程的线程池)
-
-newSingleThreadExecutor(单线程的线程池)
-
-newCachedThreadPool(可缓存线程的线程池)
-
-newScheduledThreadPool(定时及周期执行的线程池)
-
-
-
-
-
-##### newFixedThreadPool
-
-```java
-  public static ExecutorService newFixedThreadPool(int nThreads, ThreadFactory threadFactory) {
-        return new ThreadPoolExecutor(nThreads, nThreads,
-                                      0L, TimeUnit.MILLISECONDS,
-                                      new LinkedBlockingQueue<Runnable>(),
-                                      threadFactory);
-    }
-```
-
-线程池特点：
-
-- 核心线程数和最大线程数大小一样
-- 没有所谓的非空闲时间，即keepAliveTime为0
-- 阻塞队列为无界队列LinkedBlockingQueue
-
-
-
-工作机制:
-
-![image-20190719173649356](assets/concurrent/image-20190719173649356.png)
-
-**使用无界队列的线程池会导致内存飙升吗？**
-
-答案 **：会的，newFixedThreadPool使用了无界的阻塞队列LinkedBlockingQueue，如果线程获取一个任务后，任务的执行时间比较长(比如，上面demo设置了10秒)，会导致队列的任务越积越多，导致机器内存使用不停飙升，** 最终导致OOM。
-
-使用场景
-
-FixedThreadPool 适用于处理CPU密集型的任务，确保CPU在长期被工作线程使用的情况下，尽可能的少的分配线程，即适用执行长期的任务。
-
-
-
-##### newCachedThreadPool
-
-```java
-public static ExecutorService newCachedThreadPool(ThreadFactory threadFactory) {
-        return new ThreadPoolExecutor(0, Integer.MAX_VALUE,
-                                      60L, TimeUnit.SECONDS,
-                                      new SynchronousQueue<Runnable>(),
-                                      threadFactory);
-    }
-```
-
-**线程池特点**：
-
-- 核心线程数为0
-- 最大线程数为Integer.MAX_VALUE
-- 阻塞队列是SynchronousQueue
-- 非核心线程空闲存活时间为60秒
-
-当提交任务的速度大于处理任务的速度时，每次提交一个任务，就必然会创建一个线程。极端情况下会创建过多的线程，耗尽 CPU 和内存资源。由于空闲 60 秒的线程会被终止，长时间保持空闲的 CachedThreadPool 不会占用任何资源。
-
-**工作机制**
-
-![image-20190719173755826](assets/concurrent/image-20190719173755826.png)
-
-提交任务
-
-因为没有核心线程，所以任务直接加到SynchronousQueue队列。
-
-判断是否有空闲线程，如果有，就去取出任务执行。
-
-如果没有空闲线程，就新建一个线程执行。
-
-执行完任务的线程，还可以存活60秒，如果在这期间，接到任务，可以继续活下去；否则，被销毁。
-
-**使用场景**
-
-用于并发执行大量短期的小任务。
-
-
-
-##### newSingleThreadExecutor
-
-```java
-public static ExecutorService newSingleThreadExecutor(ThreadFactory threadFactory) {
-        return new FinalizableDelegatedExecutorService
-            (new ThreadPoolExecutor(1, 1,
-                                    0L, TimeUnit.MILLISECONDS,
-                                    new LinkedBlockingQueue<Runnable>(),
-                                    threadFactory));
-    }
-
-```
-
-**线程池特点**
-
-- 核心线程数为1
-- 最大线程数也为1
-- 阻塞队列是LinkedBlockingQueue
-- keepAliveTime为0
-
-
-
-**工作机制**
-
-![image-20190719174117371](assets/concurrent/image-20190719174117371.png)
-
-
-
-- 提交任务
-- 线程池是否有一条线程在，如果没有，新建线程执行任务
-- 如果有，讲任务加到阻塞队列
-- 当前的唯一线程，从队列取任务，执行完一个，再继续取，一个人（一条线程）夜以继日地干活。
-
-使用场景
-
-适用于串行执行任务的场景，一个任务一个任务地执行。
-
-##### newScheduledThreadPool
-
-
-
-```java
- public ScheduledThreadPoolExecutor(int corePoolSize) {
-        super(corePoolSize, Integer.MAX_VALUE, 0, NANOSECONDS,
-              new DelayedWorkQueue());
-    }
-
-```
-
-
-
-**线程池特点**
-
-- 最大线程数为Integer.MAX_VALUE
-- 阻塞队列是DelayedWorkQueue
-- keepAliveTime为0
-- scheduleAtFixedRate() ：按某种速率周期执行
-- scheduleWithFixedDelay()：在某个延迟后执行
-
-
-
-**工作机制**
-
-- 添加一个任务
-- 线程池中的线程从 DelayQueue 中取任务
-- 线程从 DelayQueue 中获取 time 大于等于当前时间的task
-- 执行完后修改这个 task 的 time 为下次被执行的时间
-- 这个 task 放回DelayQueue队列中
-
-```java
-/**
-    创建一个给定初始延迟的间隔性的任务，之后的下次执行时间是上一次任务从执行到结束所需要的时间+给定的间隔时间
-    */
-    ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
-        scheduledExecutorService.scheduleWithFixedDelay(()->{
-            System.out.println("current Time" + System.currentTimeMillis());
-            System.out.println(Thread.currentThread().getName()+"正在执行");
-        }, 1, 3, TimeUnit.SECONDS);
-
-  /**
-    创建一个给定初始延迟的间隔性的任务，之后的每次任务执行时间为 初始延迟 + N * delay(间隔) 
-    */
-    ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
-            scheduledExecutorService.scheduleAtFixedRate(()->{
-            System.out.println("current Time" + System.currentTimeMillis());
-            System.out.println(Thread.currentThread().getName()+"正在执行");
-        }, 1, 3, TimeUnit.SECONDS);;
-
-```
-
-#### 使用场景
-
-周期性执行任务的场景，需要限制线程数量的场景
-
-回到面试题：**说说几种常见的线程池及使用场景？**
-
-回答这四种经典线程池 **：newFixedThreadPool，newSingleThreadExecutor，newCachedThreadPool，newScheduledThreadPool，分线程池特点，工作机制，使用场景分开描述，再分析可能存在的问题，比如newFixedThreadPool内存飙升问题** 即可
-
-
-
-
-#### execute方法和submit方法
-
-
-
-execute()方法实际上是Executor接口中声明的方法，在ThreadPoolExecutor进行了具体的实现，这个方法是ThreadPoolExecutor的核心方法，通过这个方法可以向线程池提交一个任务，交由线程池去执行。
-
-submit()方法是在ExecutorService中声明的方法，在AbstractExecutorService就已经有了具体的实现，在ThreadPoolExecutor中并没有对其进行重写，这个方法也是用来向线程池提交任务的，但是它和execute()方法不同，它能够返回任务执行的结果，去看submit()方法的实现，会发现它实际上还是调用的execute()方法，只不过它利用了Future来获取任务执行结果（Future相关内容将在下一篇讲述）。
-
-
-
-
-
-
+#### 关闭线程池
 
 
 
@@ -1231,19 +1334,266 @@ UncaughtExceptionHandler只对execute提交有作用.
 
 
 
-
-
-
-
-
-
-
-
 ### Excuters
 
 不建议使用,会屏蔽细节.
 
 
+
+## CAS（Compare and Swap）
+
+##### 悲观与乐观
+
+悲观者与乐观者的做事方式完全不一样，悲观者的人生观是一件事情我必须要百分之百完全控制才会去做，否则就认为这件事情一定会出问题；而乐观者的人生观则相反，凡事不管最终结果如何，他都会先尝试去做，大不了最后不成功。
+
+悲观锁会把整个对象加锁占为自有后才去做操作，乐观锁不获取锁直接做操作，然后通过一定检测手段决定是否更新数据。
+
+![1563605672673](assets/concurrent/1563605672673.png)
+
+##### 内存值、预期值、新值
+
+当且仅当预期值和内存值相等时才将内存值修改为新值
+
+```java
+public class AtomicInt {
+    private volatile int value; 
+    public final int get() {
+        return value;
+    }
+	
+	public final int getAndIncrement() {
+        for (;;) {
+            int current = get();
+            int next = current + 1;
+            if (compareAndSet(current, next))
+                return current;
+        }
+    }
+    
+    public final boolean compareAndSet(int expect, int update) {
+		Unsafe类提供的硬件级别的compareAndSwapInt方法;
+    }
+}
+class Unsafe{
+     public final native boolean compareAndSwapObject(Object field, long field, Object var4, Object var5);
+    
+     public final native boolean compareAndSwapInt(Object field, long field, int var4, int var5);
+ 
+     public final native boolean compareAndSwapLong(Object field, long var2, long var4, long var6);
+}
+```
+
+##### 优点
+
+避免悲观锁独占对象，提高了并发性能
+
+**缺点** 
+
+1.乐观锁只能保证一个共享变量的原子操作，悲观的互斥锁不管对象数量多少及对象颗粒度大小。
+
+2.长时间自旋可能导致开销大。假如CAS长时间不成功而一直自旋，会给CPU带来很大的开销。
+
+3.ABA问题。CAS的核心思想是通过比对内存值与预期值是否一样而判断内存值是否被改过，但这个判断逻辑不严谨，假如内存值原来是A，后来被一条线程改为B，最后又被改成了A，则CAS认为此内存值并没有发生改变，但实际上是有被其他线程改过的，这种情况对依赖过程值的情景的运算结果影响很大。解决的思路是引入版本号，每次变量更新都把版本号加一。
+
+**进阶**
+
+CAS是锁了cpu总线还是缓存行.
+
+https://www.zhihu.com/question/65372648
+
+https://blog.csdn.net/chenssy/article/details/69640293
+
+## JDK并发容器
+
+jdk提供了一些已经实现的并发容器,当然Collections工具可以帮我们把任意集合包装成线程安全的集合.比如
+
+Collections.synchromzedMap() 和 Collections.synchromzedList()
+
+### 线程安全的HashMap
+
+Collections.synchromzedMap()方法会生成一个名为SynchronizedMap的Map。它使用委托，
+将自己所有相关的功能交给传入的实现，而自己则主要负责保证线程安全。
+
+synchronizedMap的线程安全主要通过一个基于synchronized的mutex锁.这样做可以保证并发安全,但性能并不高,
+
+在高并发场景下我们需要考虑其他的方案.比如ConcurrentHashMap
+
+```java
+ public static <K,V> Map<K,V> synchronizedMap(Map<K,V> m) {
+        return new SynchronizedMap<>(m);
+ }
+
+  final Object mutex; 
+  public int size() {
+        synchronized (mutex) {return m.size();}
+  }
+```
+
+
+
+#### ConcurrentHashMap
+
+高效并发的HashMap.
+
+
+
+### 高效写入读取ConcurrentLinkedQueue
+
+高效的链表并发队列,可以看成是线程安全的LinkedList
+
+
+
+### 高效读取CopyOnWriteArrayList
+
+读多写少,性能要好的多.
+
+![1563609035770](assets/concurrent/1563609035770.png)
+
+只有写写加锁.
+
+CopyOnWrite,在写入时候进行自我复制.
+
+```java
+/** The array, accessed only via getArray/setArray. */
+private transient volatile Object[] array; // 使用volatile保持可见性.
+public boolean add(E e) {
+    final ReentrantLock lock = this.lock;
+    lock.lock();
+    try {
+        Object[] elements = getArray();
+        int len = elements.length;
+        Object[] newElements = Arrays.copyOf(elements, len + 1);
+        newElements[len] = e;
+        setArray(newElements);
+        return true;
+    } finally {
+        lock.unlock();
+    }
+}
+private E get(Object[] a, int index) {
+        return (E) a[index];
+}
+```
+
+<https://juejin.im/post/5cd1724cf265da03a7440aae>
+
+
+
+### BlockingQuene
+
+一个接口,阻塞队列,JDK用数组/链表等实现它.
+
+压入元素 
+
+- offer() 如果当前队列己经满了，它就会立即返回false
+
+- put() 如果队列满了，它会一直等待，直到队列中有空闲的位置
+
+  
+
+弹出元素
+
+- poll() 如果队列为空，那么poll()方法会直接返回null
+- take() 会等待，直到队列内有可用元素。
+
+**ArrayBlockingQueue**
+
+```java
+final Object[] items;
+// fair 公平锁和非公平锁. 在BlockingQueue里也就是是否FIFO.
+public ArrayBlockingQueue(int capacity, boolean fair) {
+        if (capacity <= 0)
+            throw new IllegalArgumentException();
+        this.items = new Object[capacity];
+        lock = new ReentrantLock(fair);
+        notEmpty = lock.newCondition();
+        notFull =  lock.newCondition();
+}
+
+
+public E take() throws InterruptedException {
+        final ReentrantLock lock = this.lock;
+        lock.lockInterruptibly();
+        try {
+            while (count == 0)
+                notEmpty.await();
+            return dequeue();
+        } finally {
+            lock.unlock();
+        }
+}
+
+private void enqueue(E x) {
+        // assert lock.getHoldCount() == 1;
+        // assert items[putIndex] == null;
+        final Object[] items = this.items;
+        items[putIndex] = x;
+        if (++putIndex == items.length)
+            putIndex = 0;
+        count++;
+        notEmpty.signal();
+}
+
+public void put(E e) throws InterruptedException {
+        checkNotNull(e);
+        final ReentrantLock lock = this.lock;
+        lock.lockInterruptibly();
+        try {
+            while (count == items.length)
+                notFull.await();
+            enqueue(e);
+        } finally {
+            lock.unlock();
+        }
+}
+private E dequeue() {
+        // assert lock.getHoldCount() == 1;
+        // assert items[takeIndex] != null;
+        final Object[] items = this.items;
+        @SuppressWarnings("unchecked")
+        E x = (E) items[takeIndex];
+        items[takeIndex] = null;
+        if (++takeIndex == items.length)
+            takeIndex = 0;
+        count--;
+        if (itrs != null)
+            itrs.elementDequeued();
+        notFull.signal();
+        return x;
+}
+```
+
+
+
+**LinkedBlockingQueue**
+
+链表实现
+
+
+
+
+
+
+
+
+
+### ConcurrentSkipListMap
+
+跳表
+
+![1563607139807](assets/concurrent/1563607139807.png)
+
+
+
+跳表的查找(空间换时间 logn)
+
+跳表内的所有链表的元素都是排序的。查找时，可以从顶级链表开始找。一旦发现被查找的元素大于当前链表中的取值，就会转入下一层链表继续找。这也就是说在查找过程中，搜索是跳跃式的，在跳表中查找元素7，如图所示。
+
+![1563607186242](assets/concurrent/1563607186242.png)
+
+
+
+内部使用CAS.
 
 
 
