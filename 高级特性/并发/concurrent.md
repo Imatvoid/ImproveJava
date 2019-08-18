@@ -287,6 +287,33 @@ final具有了初始化安全性。
 
 ![image-20190629141808810](./assets/concurrent/image-20190629141808810.png)
 
+线程状态转换:
+
+![1565526353483](assets/concurrent/1565526353483.png)
+
+
+
+
+
+### main线程
+
+```java
+        // 获取Java线程管理MXBean
+        ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
+        // 不需要获取同步的monitor和synchronizer信息,仅获取线程和线程堆栈信息
+        ThreadInfo[] threadInfos = threadMXBean.dumpAllThreads(false, false);
+        // 遍历线程信息,仅打印线程ID和线程名称信息
+        for (ThreadInfo threadInfo : threadInfos) {
+            System.out.println("[" + threadInfo.getThreadId() + "] " + threadInfo.
+                    getThreadName());
+        }
+```
+
+[4] Signal Dispatcher // 分发处理发送给JVM信号的线程
+[3] Finalizer // 调用对象finalize方法的线程
+[2] Reference Handler// 清除Reference的线程
+[1] main // main线程,用户程序入口
+
 ### 新建线程
 
 ```java
@@ -337,6 +364,73 @@ Thread.interruped() 静态方法 检验中断标志位,返回是否被中断,并
 **只是设置中断标记位,不做处理,那什么都不会发生** 
 
 **sleep方法由于中断被抛出异常,此时,它会清除中断标记位置.**
+
+```java
+public class InterruptAndStopThread {
+    public static void main(String args[]) throws InterruptedException {
+
+        Thread thread = new Thread() {
+            @Override
+            public void run() {
+                while (true) {
+                    if (Thread.currentThread().isInterrupted()) {
+                        System.out.println("收到中断信号,停止该线程!");
+                        break;
+                    }
+                    try {
+                        // 会清除中断标记位
+                        Thread.sleep(600);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                        Thread.currentThread().interrupt();
+                    }
+                    System.out.println("Running!");
+                    Thread.yield();
+                }
+            }
+        };
+
+        thread.start();
+        Thread.sleep(2000);
+        thread.interrupt();//进行中断操作
+        thread.wait();
+    }
+
+    static void stopThreadTest() throws InterruptedException {
+        Runner one = new Runner();
+        Thread countThread = new Thread(one, "CountThread");
+        countThread.start();
+        // 睡眠1秒,main线程对CountThread进行中断,使CountThread能够感知中断而结束
+        TimeUnit.SECONDS.sleep(1);
+        countThread.interrupt();
+        Runner two = new Runner();
+        countThread = new Thread(two, "CountThread");
+        countThread.start();
+        // 睡眠1秒,main线程对Runner two进行取消,使CountThread能够感知on为false而结束
+        TimeUnit.SECONDS.sleep(1);
+        two.cancel();
+    }
+
+    private static class Runner implements Runnable {
+        private long i;
+        private volatile boolean on = true;
+
+        @Override
+        public void run() {
+            while (on && !Thread.currentThread().isInterrupted()) {
+                i++;
+            }
+            System.out.println("Count i = " + i);
+        }
+
+        public void cancel() {
+            on = false;
+        }
+    }
+}
+```
+
+
 
 ### 等待wait()和通知notify
 
@@ -409,6 +503,8 @@ public static native void yield()在单线程里实现多任务的调度,并在�
 比如垃圾回收线程,JIT线程
 
 在start之前设置setDaemon(true)
+
+在构建Daemon线程时,不能依靠finally块中的内容来确保执行关闭或清理资源的逻辑。
 
 ### 线程优先级
 
@@ -824,6 +920,381 @@ Integer是不可变对象,i++ 实际是Integer.valueOf(),锁住的不是一个�
 
 
 ## JDK并发包
+
+### Lock接口
+
+在Lock接口出现之前,Java程序是靠synchronized关键字实现锁功能的,而Java SE 5之后,并发包中新增了Lock接口(以及相关实现类)用来实现锁功能,它提供了与synchronized关键字类似的同步功能,只是在使用时需要显式地获取和释放锁。虽然它缺少了(通过synchronized块或者方法所提供的)隐式获取释放锁的便捷性,但是却拥有了锁获取与释放的可操作性、可中断的获取锁以及超时获取锁等多种synchronized关键字所不具备的同步特性。
+
+#### Lock可以实现Synchronized所有的功能,并提供更灵活的特性
+
+使用synchronized关键字将会隐式地获取锁,但是它将锁的获取和释放固化了,也就是先获取再释放。当然,这种方式简化了同步的管理,可是扩展性没有显示的锁获取和释放来的好。例如,针对一个场景,手把手进行锁获取和释放,先获得锁A,然后再获取锁B,当锁B获得后,释放锁A同时获取锁C,当锁C获得后,再释放B同时获取锁D,以此类推。这种场景下,synchronized关键字就不那么容易实现了,而使用Lock却容易许多。
+
+![1565529212232](assets/concurrent/1565529212232.png)
+
+#### Lock接口介绍
+
+![1565529257442](assets/concurrent/1565529257442.png)
+
+
+
+### 队列同步器AQS
+
+#### 介绍
+
+队列同步器AbstractQueuedSynchronizer(以下简称同步器),是用来构建锁或者其他同步组件的基础框架,
+
+它使用了一个int成员变量表示同步状态,通过内置的FIFO队列来完成资源获取线程的排队工作,并发包的作者(Doug Lea)期望它能够成为实现大部分同步需求的基础。
+
+![image-20190812172915609](assets/concurrent/image-20190812172915609.png)
+
+```java
+public abstract class AbstractQueuedSynchronizer
+    extends AbstractOwnableSynchronizer
+    implements java.io.Serializable {
+    static final class Node {...}
+    private transient volatile Node head;
+    private transient volatile Node tail;
+    private volatile int state;//同步状态
+```
+
+**把head和tail设置为了volatile,这两个节点的修改将会被其他线程看到,事实上,我们也主要是通过修改这两个节点来完成入队和出队.**
+
+
+
+AQS使用一个int类型的成员变量state来表示同步状态，当state>0时表示已经获取了锁，当state = 0时表示释放了锁。
+
+它提供了三个方法（getState()、setState(int newState)、compareAndSetState(int expect,int update)）来对同步状态state进行操作，当然AQS可以确保对state的操作是安全的。
+
+```java
+    protected final int getState() {
+        return state;
+    }
+
+    protected final void setState(int newState) {
+        state = newState;
+    }
+
+    //使用CAS设置同步状态，确保线程安全
+    protected final boolean compareAndSetState(int expect, int update) {
+        return unsafe.compareAndSwapInt(this, stateOffset, expect, update);
+    }
+```
+
+#### 同步队列
+
+AQS通过内置的FIFO同步队列来完成资源获取线程的排队工作，如果当前线程获取同步状态失败（锁）时，AQS则会将当前线程以及等待状态等信息构造成一个节点（Node）并将其加入同步队列，同时会阻塞当前线程，当同步状态释放时，则会把节点中的线程唤醒，使其再次尝试获取同步状态。
+
+**node节点**
+
+```java
+static final class Node {
+        //该等待同步的节点处于共享模式
+        static final Node SHARED = new Node();
+        //该等待同步的节点处于共享模式
+        static final Node EXCLUSIVE = null;
+
+        //标记等待线程由于中断或超时，需要被取消，即踢出队列
+        static final int CANCELLED =  1;
+        //waitStatus的一常量值，表示后继线程需要取消挂起
+        //当前节点为SIGNAL时,后继节点会被挂起,因此在当前节点释放锁或被取消之后必须被唤醒(unparking)其后继结点.
+        static final int SIGNAL    = -1;
+        //waitStatus的一常量值，表示线程正在等待条件
+        //该节点的线程处于等待条件状态,不会被当作是同步队列上的节点,直到被唤醒(signal),设置其值为0,重新进入阻塞状态
+        static final int CONDITION = -2;
+        //waitStatus的一常量值，表示下一个acquireShared应无条件传播
+        static final int PROPAGATE = -3;
+       
+        /**
+        * 非负值表示这个节点不需要被通知.
+        * 初始化为0代表普通同步节点,CONDITION代表条件等待队列节点.
+        * 使用CAS更新
+        */
+        volatile int waitStatus;
+
+     
+        //同步队列前驱节点
+        volatile Node prev;
+
+      
+        //同步队列后继节点
+        volatile Node next;
+
+        //关联的线程对象.
+        volatile Thread thread;
+
+        
+        //等待队列中使用,下一个waitStatus值为CONDITION的节点,独占时为EXCLUSIVE,共享时为SHARED
+        Node nextWaiter;
+
+        /**
+        * 是否当前结点是处于共享模式
+        */
+        final boolean isShared() {
+            return nextWaiter == SHARED;
+        }
+
+         /**
+         * 返回前一个节点，如果没有前一个节点，则抛出空指针异常
+         */
+        final Node predecessor() throws NullPointerException {
+            Node p = prev;
+            if (p == null)
+                throw new NullPointerException();
+            else
+                return p;
+        }
+        // Used to establish initial head or SHARED marker
+        Node() {    
+        }
+        // Used by addWaiter
+        Node(Thread thread, Node mode) {     
+            this.nextWaiter = mode;
+            this.thread = thread;
+        }
+        // Used by Condition,条件等待队列添加节点使用
+        Node(Thread thread, int waitStatus) { 
+            this.waitStatus = waitStatus;
+            this.thread = thread;
+        }
+    }
+```
+
+#### 独占模式
+
+**独占获取**
+
+```java
+public final void acquire(int arg) {
+        if (!tryAcquire(arg) &&
+            acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
+            selfInterrupt();
+    }
+```
+
+该方法首先尝试获取锁( tryAcquire(arg)的具体实现定义在了子类中),如果获取到,则执行完毕,否则通过addWaiter(Node.EXCLUSIVE), arg)方法把当前节点添加到等待队列末尾,并设置为独占模式
+
+```java
+private Node addWaiter(Node mode) {
+        //把当前线程包装为node,设为独占模式
+        Node node = new Node(Thread.currentThread(), mode);
+        // Try the fast path of enq; backup to full enq on failure
+        Node pred = tail;
+        //如果tail不为空,把node插入末尾
+        if (pred != null) {
+            node.prev = pred;
+            //此时可能有其他线程插入,所以重新判断tail
+            if (compareAndSetTail(pred, node)) {
+                pred.next = node;
+                return node;
+            }
+        }
+        enq(node);
+        return node;
+    }
+
+private Node enq(final Node node) {
+        for (;;) {
+            Node t = tail;
+            //此时可能有其他线程插入,所以重新判断tail是否为空
+            if (t == null) { // Must initialize
+                if (compareAndSetHead(new Node()))
+                    tail = head;
+            } else {
+                node.prev = t;
+                if (compareAndSetTail(t, node)) {
+                    t.next = node;
+                    return t;
+                }
+            }
+        }
+    }
+```
+
+如果tail节点为空,执行enq(node);重新尝试,最终把node插入.
+
+在把node插入队列末尾后,它并不立即挂起该节点中线程,因为在插入它的过程中,前面的线程可能已经执行完成,所以它会先进行自旋操作acquireQueued(node, arg),尝试让该线程重新获取锁!当条件满足获取到了锁则可以从自旋过程中退出，否则继续。
+
+自旋转获取锁过程
+
+```java
+final boolean acquireQueued(final Node node, int arg) {
+        boolean failed = true;
+        try {
+            boolean interrupted = false;
+            for (;;) {
+                //  获得当前节点的先驱节点
+                final Node p = node.predecessor();
+                // 如果它的前继节点为头结点,尝试获取锁,获取成功则返回           
+                if (p == head && tryAcquire(arg)) {
+                    setHead(node);
+                    p.next = null; // help GC
+                    // 获取成功,无需interrupt
+                    failed = false;
+                    return interrupted;
+                }
+                // 获取锁失败，线程进入等待状态等待获取独占式锁
+                if (shouldParkAfterFailedAcquire(p, node) &&
+                    parkAndCheckInterrupt())
+                    // 挂起
+                    interrupted = true;
+            }
+        } finally {
+            if (failed)
+                cancelAcquire(node);
+        }
+    }
+```
+
+如果没获取到锁,则判断是否应该挂起,而这个判断则得通过它的前驱节点的waitStatus来确定:
+
+```java
+private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
+   //前置节点状态
+   int ws = pred.waitStatus;
+   if (ws == Node.SIGNAL)
+        /*
+         * This node has already set status asking a release
+         * to signal it, so it can safely park.
+         */
+        return true;
+   if (ws > 0) {
+        /*
+         * Predecessor was cancelled. Skip over predecessors and
+         * indicate retry.
+         */
+        do {
+            node.prev = pred = pred.prev;
+        } while (pred.waitStatus > 0);
+        pred.next = node;
+    } else {  
+        /*
+         * waitStatus must be 0 or PROPAGATE.  Indicate that we
+         * need a signal, but don't park yet.  Caller will need to
+         * retry to make sure it cannot acquire before parking.
+         */
+        compareAndSetWaitStatus(pred, ws, Node.SIGNAL);
+    }
+   return false;
+}
+```
+
+前驱节点状态为SIGNAL,则返回true表示应该挂起当前线程,挂起该线程,并等待被唤醒,被唤醒后进行中断检测,如果发现当前线程被中断，那么抛出InterruptedException并退出循环.
+大于0,将前驱节点踢出队列,返回false
+小于0,也是返回false,不过先将前驱节点waitStatus设置为SIGNAL,使得下次判断时,将当前节点挂起
+
+主要逻辑是使用`compareAndSetWaitStatus(pred, ws, Node.SIGNAL)`使用CAS将节点状态由INITIAL设置成SIGNAL，表示当前线程阻塞。当compareAndSetWaitStatus设置失败则说明shouldParkAfterFailedAcquire方法返回false，然后会在acquireQueued()方法中for (;;)死循环中会继续重试，直至compareAndSetWaitStatus设置节点状态位为SIGNAL时shouldParkAfterFailedAcquire返回true时才会执行方法.
+
+```java
+private final boolean parkAndCheckInterrupt() {
+        //使得该线程阻塞
+		LockSupport.park(this);
+        return Thread.interrupted();
+}
+```
+
+**独占释放**
+
+```java
+public final boolean release(int arg) {
+   if (tryRelease(arg)) {
+        Node h = head;
+   if (h != null && h.waitStatus != 0)
+            unparkSuccessor(h);
+        return true;
+    }
+    return false;
+}
+
+/**如果node的后继节点不为空且不是作废状态,则唤醒这个后继节点,否则从末尾开始寻找合适的节点,如果找到,则唤醒*/
+private void unparkSuccessor(Node node) {
+        int ws = node.waitStatus;
+        if (ws < 0)
+            compareAndSetWaitStatus(node, ws, 0);
+        Node s = node.next;
+        if (s == null || s.waitStatus > 0) {
+            s = null;
+            for (Node t = tail; t != null && t != node; t = t.prev)
+                if (t.waitStatus <= 0)
+                    s = t;
+        }
+        if (s != null)
+            LockSupport.unpark(s.thread);
+    }
+```
+
+![image-20190812185459176](assets/concurrent/image-20190812185459176.png)
+
+
+
+**独占释放**
+
+```java
+public final boolean release(int arg) {
+        if (tryRelease(arg)) {
+            Node h = head;
+            if (h != null && h.waitStatus != 0)
+                unparkSuccessor(h);
+            return true;
+        }
+        return false;
+}
+
+```
+
+这段代码逻辑就比较容易理解了，如果同步状态释放成功（tryRelease返回true）则会执行if块中的代码，当head指向的头结点不为null，并且该节点的状态值不为0的话才会执行unparkSuccessor()方法。
+
+```java
+private void unparkSuccessor(Node node) {
+    /*
+     * If status is negative (i.e., possibly needing signal) try
+     * to clear in anticipation of signalling.  It is OK if this
+     * fails or if status is changed by waiting thread.
+     */
+    int ws = node.waitStatus;
+    if (ws < 0)
+        compareAndSetWaitStatus(node, ws, 0);
+
+    /*
+     * Thread to unpark is held in successor, which is normally
+     * just the next node.  But if cancelled or apparently null,
+     * traverse backwards from tail to find the actual
+     * non-cancelled successor.
+     */
+
+	  //头节点的后继节点
+    Node s = node.next;
+    if (s == null || s.waitStatus > 0) {
+        s = null;
+        for (Node t = tail; t != null && t != node; t = t.prev)
+            if (t.waitStatus <= 0)
+                s = t;
+    }
+    if (s != null)
+		//后继节点不为null时唤醒该线程
+        LockSupport.unpark(s.thread);
+}
+```
+
+首先获取头节点的后继节点，当后继节点的时候会调用LookSupport.unpark()方法，该方法会唤醒该节点的后继节点所包装的线程。因此，**每一次锁释放后就会唤醒队列中该节点的后继节点所引用的线程，从而进一步可以佐证获得锁的过程是一个FIFO（先进先出）的过程。**
+
+总结：
+
+1. **线程获取锁失败，线程被封装成Node进行入队操作，核心方法在于addWaiter()和enq()，同时enq()完成对同步队列的头结点初始化工作以及CAS操作失败的重试**;
+2. **线程获取锁是一个自旋的过程，当且仅当 当前节点的前驱节点是头结点并且成功获得同步状态时，节点出队即该节点引用的线程获得锁，否则，当不满足条件时就会调用LookSupport.park()方法使得线程阻塞**；
+3. **释放锁的时候会唤醒后继节点；**
+
+总体来说：**在获取同步状态时，AQS维护一个同步队列，获取同步状态失败的线程会加入到队列中进行自旋；移除队列（或停止自旋）的条件是前驱节点是头结点并且成功获得了同步状态。在释放同步状态时，同步器会调用unparkSuccessor()方法唤醒后继节点。**
+
+
+
+
+#### 同步模式
+
+http://www.wangjialong.cc/2018/04/06/aqs_info/
+
+https://juejin.im/post/5aeb07ab6fb9a07ac36350c8
+
+
 
 ### 倒计数器CountDownLatch
 
@@ -1857,9 +2328,139 @@ synchronizedMap的线程安全主要通过一个基于synchronized的mutex锁.�
 
 
 
-#### ConcurrentHashMap
+#### ConcurrentHashMap 1.7
+
+![image-20190812191207744](assets/concurrent/image-20190812191207744.png)
 
 高效并发的HashMap.
+
+>  在并发编程中使用HashMap可能导致程序死循环。而使用线程安全的HashTable效率又非 常低下，基于以上两个原因，便有了ConcurrentHashMap的登场机会
+
+**分段锁**
+
+降低锁的粒度,首先将数据分成一段一段地存 储，然后给每一段数据配一把锁，当一个线程占用锁访问其中一个段数据的时候，其他段的数 据也能被其他线程访问。
+
+ConcurrentHashMap
+
+- Segment数组结构
+
+  Segment是一种可重 入锁（ReentrantLock）
+
+  Segment的结构和HashMap类似，是一种 数组和链表结构。一个Segment里包含一个HashEntry数组，每个HashEntry是一个链表结构的元 素，每个Segment守护着一个HashEntry数组里的元素，当对HashEntry数组的数据进行修改时， 必须首先获得与它对应的Segment锁
+
+- HashEntry数组
+
+**结构概览**
+
+![image-20190812191058622](assets/concurrent/image-20190812191058622.png)
+
+![image-20190812191142935](assets/concurrent/image-20190812191142935.png)
+
+
+
+#### ConcurrentHashMap 1.8
+
+![image-20190813114442601](assets/concurrent/image-20190813114442601.png)
+
+**重要属性**
+
+```java
+//负数代表正在进行初始化或扩容操作
+//-1代表正在初始化
+//-N 表示有N-1个线程正在进行扩容操作
+//正数或0代表hash表还没有被初始化，
+//这个数值表示初始化或下一次进行扩容的大小，这一点类似于扩容阈值的概念。它的值始终是当前ConcurrentHashMap容量的0.75倍，这与loadfactor是对应的。
+private transient volatile int sizeCtl
+```
+
+**初始化**
+
+```java
+private final Node<K,V>[] initTable() {
+        Node<K,V>[] tab; int sc;
+        //不断自旋
+        while ((tab = table) == null || tab.length == 0) {
+            if ((sc = sizeCtl) < 0)
+                Thread.yield(); // lost initialization race; just spin初始化竞赛失败；只是旋转
+            else if (U.compareAndSwapInt(this, SIZECTL, sc, -1)) {//cas替换sc为-1
+                try {
+                    if ((tab = table) == null || tab.length == 0) {
+                        int n = (sc > 0) ? sc : DEFAULT_CAPACITY;
+                        @SuppressWarnings("unchecked")
+                        Node<K,V>[] nt = (Node<K,V>[])new Node<?,?>[n];
+                        table = tab = nt;
+                        sc = n - (n >>> 2); // 容量的3/4 
+                    }
+                } finally {
+                    sizeCtl = sc;
+                }
+                break;
+            }
+        }
+        return tab;
+    }
+```
+
+注意这里的双重校验策略.
+
+在某个线程通过U.compareAndSwapInt方法设置了sizeCtl之前和之后进行了两次check，来检测table是否被初始化过了，这种检测是必须的，因为在并发环境下，可能前一个线程正在初始化table但是还没有成功初始化，也就是table依然还为null,这是第二个也会进行初始化.
+
+**get**
+
+```java
+public V get(Object key) {
+        Node<K,V>[] tab; Node<K,V> e, p; int n, eh; K ek;
+        int h = spread(key.hashCode());
+        if ((tab = table) != null && (n = tab.length) > 0 &&
+            (e = tabAt(tab, (n - 1) & h)) != null) {
+            if ((eh = e.hash) == h) {
+                if ((ek = e.key) == key || (ek != null && key.equals(ek)))
+                    return e.val;
+            }
+            else if (eh < 0)
+                return (p = e.find(h, key)) != null ? p.val : null;
+            while ((e = e.next) != null) {
+                if (e.hash == h &&
+                    ((ek = e.key) == key || (ek != null && key.equals(ek))))
+                    return e.val;
+            }
+        }
+        return null;
+    }
+```
+
+hash计算方式.
+
+key对象的hashcode.进行高16位扰动处理,然后变成正数.
+
+```java
+ static final int spread(int h) {
+        return (h ^ (h >>> 16)) & HASH_BITS;
+    }
+
+  byte b = -1;//11111111
+  b = (byte)( b & 0x7f);//127
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
