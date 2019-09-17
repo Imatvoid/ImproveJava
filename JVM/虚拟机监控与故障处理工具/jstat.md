@@ -1,8 +1,4 @@
-
-
-
-
-##### jstat
+## jstat
 
 > jstat (JVM Statistics Monitoring Tool)
 
@@ -17,25 +13,72 @@ jstat [option vmid [interval [s|ms] [count]]   ]
 - interval : 间隔时间，单位为秒或毫秒
 - count：打印次数，如果缺省则打印无数次。
 
-```
-jstat -gc 2764 250 20  #查询进程2764垃圾收集情况 250ms一次  一共20次
-```
- 结果：
-
-![1546691943277](assets/1546691943277.png)
 
 option选项代表着用户希望查询的虚拟机信息，主要分为3类：类加载、垃圾收集和运行期编译状况。具体选项见下图：
 
-![1546677079566](assets/1546677079566.png)
+![1546677079566](assets/jstat/1546677079566.png)
 
 
 
-``` 
-jstat -gcutil 18384  查看gc的统计信息，关注点 主要是 已使用/总空间的占比情况。
+### 类加载信息
+
+```shell
+$ jstat -class 18384 1000 1 #类加载统计
 ```
 结果：
+![1546680050376](assets/jstat/1546680050376.png)
 
-![1546677385334](assets/1546677385334.png)
+- Loaded : 加载class的数量
+
+- Bytes : class字节大小
+
+- Unloaded : 未加载class的数量
+
+- Bytes : 未加载class的字节大小
+
+- Time : 加载时间
+
+
+### JIT编译信息
+
+```shell
+$ jstat -compiler 18384
+```
+
+结果
+
+![1546692432560](assets/jstat/1546692432560.png)
+
+- Compiled : 编译数量
+- Failed : 编译失败数量
+- Invalid : 无效数量
+- Time : 编译耗时
+- FailedType : 失败类型
+- FailedMethod : 失败方法的全限定名
+
+
+
+### GC信息
+
+```shell
+$ jstat -gc 2764 250 20  #查询进程2764垃圾收集情况 250ms一次  一共20次
+```
+ 结果： 单位 KB
+
+```
+ S0C    S1C    S0U    S1U      EC       EU        OC         OU       MC     MU    CCSC   CCSU   YGC     YGCT    FGC    FGCT     GCT   
+6144.0 6656.0 5696.0  0.0   118272.0 85783.7   261632.0   220132.9  21888.0 21500.3 2432.0 2260.8    122    1.032   1      0.226    1.258
+```
+
+![1546691943277](assets/jstat/1546691943277.png)
+
+```shell
+$ jstat -gcutil 18384 # 查看gc的统计信息，关注点 主要是 已使用/总空间的占比情况。
+```
+
+结果：
+
+![1546677385334](assets/jstat/1546677385334.png)
 
 | 参数 | 描述                                                     |
 | ---- | -------------------------------------------------------- |
@@ -46,19 +89,19 @@ jstat -gcutil 18384  查看gc的统计信息，关注点 主要是 已使用/总
 | M    | 元空间(MetaspaceSize)已使用的占当前容量百分比            |
 | CCS  | 压缩使用比例                                             |
 | YGC  | 年轻代垃圾回收次数                                       |
+| YGCT | 新生代垃圾回收消耗时间                                   |
 | FGC  | 老年代垃圾回收次数                                       |
 | FGCT | 老年代垃圾回收消耗时间                                   |
 | GCT  | 垃圾回收消耗总时间                                       |
 
 
 
-
-
+```shell
+$ jstat -gccapacity  18384 20 20  # 单位KB 堆内存使用情况统计
 ```
-jstat -gccapacity  18384 20 20  # 单位KB 堆内存使用情况统计
-```
+
 结果：
-![1546679939347](assets/1546679939347.png)
+![1546679939347](assets/jstat/1546679939347.png)
 
 | 参数  | 描述               |
 | ----- | ------------------ |
@@ -83,43 +126,7 @@ jstat -gccapacity  18384 20 20  # 单位KB 堆内存使用情况统计
 
 
 
-##### 类加载信息
-
-```
-jstat -class 18384 1000 1 类加载统计
-```
-结果：
-![1546680050376](assets/1546680050376.png)
-
-- Loaded : 加载class的数量
-
-- Bytes : class字节大小
-
-- Unloaded : 未加载class的数量
-
-- Bytes : 未加载class的字节大小
-
-- Time : 加载时间
-
-
-##### JIT编译信息
-
-```
-jstat -compiler 18384
-```
-
-结果
-
-![1546692432560](assets/1546692432560.png)
-
-- Compiled : 编译数量
-- Failed : 编译失败数量
-- Invalid : 无效数量
-- Time : 编译耗时
-- FailedType : 失败类型
-- FailedMethod : 失败方法的全限定名
-
-
+## 参考
 
 https://www.cnblogs.com/ityouknow/p/5714703.html
 

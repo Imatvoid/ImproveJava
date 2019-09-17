@@ -2,7 +2,11 @@
 
 ### 静态代理基本实现
 
-创建一个接口，然后创建被代理的类实现该接口并且实现该接口中的抽象方法。之后再创建一个代理类，同时使其也实现这个接口。在代理类中持有一个被代理对象的引用，而后在代理类方法中调用该对象的方法。
+创建一个接口，然后创建实现类实现该接口中的抽象方法。之后再创建一个代理类，同时使其也实现这个接口。在代理类中持有一个被代理对象的引用，而后在代理类方法中调用该对象的方法。
+
+> 接口中定义变量 public static final
+>
+> 接口中定义方法 public abstract 
 
 其实就是代理类为被代理类预处理消息、过滤消息并在此之后将消息转发给被代理类，之后还能进行消息的后置处理.
 
@@ -39,13 +43,11 @@ JDK静态代理是通过直接编码创建的，而JDK动态代理是利用反�
 
 ### 动态代理简介
 
-其实在动态代理中，核心是InvocationHandler。每一个代理的实例都会有一个关联的调用处理程序(InvocationHandler).
+其实在动态代理中，核心是`InvocationHandler`。每一个代理的实例都会有一个关联的调用处理程序(InvocationHandler).
 
 InvocationHandler会保存实际的target对象.
 
 对待代理实例(Proxy)进行调用时，将对方法的调用进行编码并指派到它的调用处理器(InvocationHandler)的invoke方法。所以对代理对象实例方法的调用都是通过InvocationHandler中的invoke方法来完成的，而invoke方法会根据传入的代理对象、方法名称以及参数决定调用代理的哪个方法。
-
-
 
 
 
@@ -483,9 +485,9 @@ public final class $Proxy0 extends Proxy implements HelloWorldInterface {
 
 只能代理接口,代理类必须实现接口
 
+<- 引用
 
-
-Proxy  <-  Invocationhandler(可以写代理逻辑) <- Impl实际实现
+Proxy类  <-  Invocationhandler(可以写代理逻辑) <- Impl实际实现
 
 ### 参考
 

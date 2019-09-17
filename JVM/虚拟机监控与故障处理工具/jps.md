@@ -2,9 +2,11 @@
 
 ## jps (JVM Process Status Tool)
 
-除了名字像UNIX的ps命令之外,它的功能也和ps命令类似:可以列出正在运行的虚拟机进程,并显示虚拟机执行主类(Main Class,main()函数所在的类)名称以及这些进程的**本地虚拟机唯一ID(Local Virtual Machine Identifier,LVMID)**。虽然功能比较单一,但它是使用频率最高的JDK命令行工具,因为其他的JDK工具大多需要输入它查询到的LVMID来确定要监控的是哪一个虚拟机进程。
+除了名字像UNIX的ps命令之外,它的功能也和ps命令类似:可以列出正在运行的虚拟机进程,并显示虚拟机执行主类(Main Class,main()函数所在的类)名称以及这些进程的**本地虚拟机唯一ID(Local Virtual Machine Identifier,LVMID)**。
 
+> 对于本地虚拟机进程来说，LVMIID 与操作系统的进程 ID (Process Identifier, PID）是一致的.
 
+虽然功能比较单一,但它是**使用频率最高的JDK命令行工具,因为其他的JDK工具大多需要输入它查询到的LVMID来确定要监控的是哪一个虚拟机进程**。
 
  jps可以列出jvm进程lvmid，主类类名，main函数参数, jvm参数，jar名称等信息。
 
@@ -32,11 +34,15 @@ $ jps -l
 20911 org.jetbrains.jps.cmdline.Launcher
 16943 sun.tools.jps.Jps
 
+$ jps -lv  # jvm参数
+3386 sun.tools.jps.Jps -Denv.class.path=.:/usr/java/jdk1.8.0_201/lib:/usr/java/jdk1.8.0_201/jre/lib -Dapplication.home=/usr/java/jdk1.8.0_201 -Xms8m
+
 ```
 
 可以使用jcmd替代
 
-```
+```shell
+$ jcmd 
 17040 sun.tools.jcmd.JCmd
 12133 com.intellij.idea.Main
 31339 nutstore.client.gui.NutstoreGUI --restart 1 --use-python-tray
