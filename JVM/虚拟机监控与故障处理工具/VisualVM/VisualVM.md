@@ -30,7 +30,15 @@ $ /usr/java/jdk1.8.0_201/bin/jvisualvm
 
 
 
+## 分析堆转储文件
 
+点击装入文件
+
+![image-20190921113906547](assets/VisualVM/image-20190921113906547.png)
+
+
+
+![image-20190921113919983](assets/VisualVM/image-20190921113919983.png)
 
 
 

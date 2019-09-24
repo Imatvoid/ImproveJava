@@ -3,7 +3,6 @@
 ![1563694957224](assets/JVM 内存/1563694957224.png)
 
 
-
 ### 线程独有--程序计数器
 
 程序计数器(Program Counter Register)是一块较小的内存空间,它可以看作是当前线程所执行的字节码的行号指示器。在虚拟机的概念模型里(仅是概念模型,各种虚拟机可能会通过一些更高效的方式去实现),字节码解释器工作时就是通过改变这个计数器的值来选取下一条需要执行的字节码指令,分支、循环、跳转、异常处理、线程恢复等基础功能都需要依赖这个计数器来完成。
@@ -23,7 +22,7 @@
 每个方法在执行的同时都会创建**一个栈帧(Stack Frame )用于存储局部变量表、操作数栈、动态链接、方法出口**
 **等信息**。每一个方法从调用直至执行完成的过程,就对应着一个栈帧在虚拟机栈中入栈到出栈的过程。
 
-局部变量表存放了编译期可知的各种基本数据类型（boolean、byte、char、short、int foat、long、double）、对象引用（reference 类型，它不等同于对象本身，可能是一个指向对象起始地址的引用指针，也可能是指向一个代表对象的句柄或其他与此对象相关的位置）和 returnaddress类型（指向了一条字节码指令的地址）。
+局部变量表存放了编译期可知的各种基本数据类型（boolean、byte、char、short、int foat、long、double）、对象引用（reference 类型，它不等同于对象本身，可能是一个指向对象起始地址的引用指针，也可能是指向一个代表对象的句柄或其他与此对象相关的位置）和 return address类型（指向了一条字节码指令的地址）。
 
 **StackOverFlow/OOM**
 
@@ -33,7 +32,7 @@
 
 本地方法栈(Native Method Stack)与虚拟机栈所发挥的作用是非常相似的,它们之间的区别不过是虚拟机栈为虚拟机执行Java方法(也就是字节码)服务,而本地方法栈则为虚拟机使用到的Native方法服务。
 
-Sun Hotspot 虚拟机直接就把本地方法栈和虚拟机栈合ニ为ー。与虚拟机栈一样，本地方法栈区域也会抛出 StackoverflowError和 OutofMemoryError异常。
+**Sun Hotspot 虚拟机直接就把本地方法栈和虚拟机栈合ニ为ー。与虚拟机栈一样，本地方法栈区域也会抛出 StackoverflowError和 OutofMemoryError异常。**
 
 ### 共享 -- 堆
 
@@ -50,14 +49,14 @@ Sun Hotspot 虚拟机直接就把本地方法栈和虚拟机栈合ニ为ー。�
 
 运行时常量池(Runtime Constant Pool)是方法区的一部分。Class文件中除了有类的版本、字段、方法、接口等描述信息外,还有一项信息是常量池(Constant Pool Table),用于存放编译期生成的各种字面量和符号引用,这部分内容将在类加载后进入方法区的运行时常量池中存放。
 
-#### 异常
+
 
 根据Java虚拟机规范的规定,当方法区无法满足内存分配需求时,将抛出
 OutOfMemoryError异常。
 
 ### 本地内存 -- 元数据区metas pace
 
-后面有提到
+后面有提到,jdk1.8 后用于实现方法区和其他特性.
 
 ### 本地内存 -- 直接内存
 
@@ -68,11 +67,9 @@ OutOfMemoryError异常。
 
 服务器管理员在配置虚拟机参数时,会根据实际内存设置-Xmx等参数信息,但经常忽略直接内存,使得各个内存区域总和大于物理内存限制(包括物理的和操作系统级的限制),从而导致动态扩展时出现OutOfMemoryError异常。
 
-
-
-
-
 ## 版本变化
+
+jdk8后.
 
 ![image-20190917120702131](assets/JVM 内存/image-20190917120702131.png)
 
@@ -106,7 +103,9 @@ OutOfMemoryError异常。
 
 ## 内存中的对象
 
-### 对象的创建
+### 对象的创建过程
+
+#### 时机
 
 克隆 反序列化 new
 
@@ -147,7 +146,7 @@ OutOfMemoryError异常。
 
 - 对象头
 - 实例数据
-- 对其填充
+- 对齐填充
 
 #### 对象头
 
@@ -207,16 +206,40 @@ OutOfMemoryError异常。
 
 ## 内存溢出
 
-在Java虚拟机规范的描述中,除了程序计数器外,虚拟机内存的其他几个运行时区域都
-有发生OutOfMemoryError(下文称OOM)异常的可能
+在Java虚拟机规范的描述中**,除了程序计数器外,虚拟机内存的其他几个运行时区域都有发生OutOfMemoryError(下文称OOM)异常的可能**
 
 ### 模拟java堆溢出
 
 限制Java堆的大小为20MB,不可扩展(将堆的最小值-Xms参数与最大值-Xmx参数设置为一样即可避免堆自动扩展),通过参数-XX:
-+HeapDumpOnOutOfMemoryError可以让虚拟机在出现内存溢出异常时Dump出当前的内存堆
-转储快照以便事后进行分析 。
++HeapDumpOnOutOfMemoryError可以让虚拟机在出现内存溢出异常时Dump出当前的内存堆转储快照以便事后进行分析 。
+
+```java
+/**
+ * VM Args:-Xms20m -Xmx20m -XX:+HeapDumpOnOutOfMemoryError  -XX:HeapDumpPath=./
+ */
+public class HeapOOM {
+
+    static class OOMObject {
+    }
+
+    public static void main(String[] args) {
+        List<OOMObject> list = new ArrayList<OOMObject>();
+        while (true) {
+            list.add(new OOMObject());
+        }
+    }
+
+}
+
+```
+
+jvisualvm
+
+![image-20190921113714671](assets/JVM 内存/image-20190921113714671.png)
 
 
+
+![image-20190921113739383](assets/JVM 内存/image-20190921113739383.png)
 
 ### 模拟虚拟机栈和本地方法栈溢出
 
@@ -226,6 +249,37 @@ OutOfMemoryError异常。
 
 如果线程请求的栈深度大于虚拟机所允许的最大深度,将抛出StackOverflowError异常。
 如果虚拟机在扩展栈时无法申请到足够的内存空间,则抛出OutOfMemoryError异常。
+
+
+
+### 模拟常量池溢出(1.8)
+
+```java
+
+/**
+ * VM Args: -XX:MetaspaceSize=10M -XX:MaxMetaspaceSize=10M   1.7:-XX:PermSize=10M -XX:MaxPermSize=10M
+ */
+public class RuntimeConstantPoolOOM {
+    static String s = "string";
+    public static void main(String[] args) {
+        //使用List保持着常量池引用，避免Full GC回收常量池行为
+        List<String> list = new ArrayList<String>(); //10MB的PermSize在integer范围内足够产生OOM了
+        while (true) {
+            list.add(String.valueOf(s).intern());
+            s += s;
+        }
+    }
+}
+
+```
+
+实际是在Metaspace
+
+### 方法区溢出
+
+大量动态代理类可以模拟.
+
+实际是在Metaspace
 
 
 
@@ -241,5 +295,5 @@ OutOfMemoryError异常。
 
 jmap -dump:format=b,file=heap.hprof 18384
 
-##### 使用MAP工具分析
+##### 使用MAP工具/jvisualvm工具分析
 
