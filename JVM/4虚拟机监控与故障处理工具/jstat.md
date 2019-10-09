@@ -83,7 +83,7 @@ $ jstat -gcutil 18384 # 查看gc的统计信息，关注点 主要是 已使用/
 | 参数 | 描述                                                     |
 | ---- | -------------------------------------------------------- |
 | S0   | 年轻代中第一个survivor（幸存区）已使用的占当前容量百分比 |
-| s1   | 年轻代中第二个survivor（幸存区）已使用的占当前容量百分比 |
+| S1   | 年轻代中第二个survivor（幸存区）已使用的占当前容量百分比 |
 | E    | 年轻代中Eden已使用的占当前容量百分比                     |
 | O    | old代已使用的占当前容量百分比                            |
 | M    | 元空间(MetaspaceSize)已使用的占当前容量百分比            |
@@ -130,7 +130,7 @@ $ jstat -gccapacity  18384 20 20  # 单位KB 堆内存使用情况统计
 
 https://www.cnblogs.com/ityouknow/p/5714703.html
 
-
+https://mp.weixin.qq.com/s?__biz=MzI4NDY5Mjc1Mg==&mid=2247483966&idx=1&sn=dfa3375d36aa2c0c25a775522e381e62&chksm=ebf6da41dc815357e0d53c73865a23f41219e75bac5a4d510bfa31cc51594b59a20e2e4f6cb8&scene=21#wechat_redirect
 
 
 
