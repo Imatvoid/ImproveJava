@@ -1,10 +1,11 @@
-## LinkedHashMap.md
+## LinkedHashMap
 
 > LinkedHashMap，其中HashMap用于存储数据，"LinkedList"用于存储数据顺序
 
 *LinkedHashMap*实现了*Map*接口，即允许放入`key`为`null`的元素，也允许插入`value`为`null`的元素。从名字上可以看出该容器是*linked list*和*HashMap*的混合体，也就是说它同时满足*HashMap*和*linked list*的某些特性。**可将LinkedHashMap看作采用LinkedList增强的HashMap。**
 
-![image-20190729165205050](assets/LinkedHashMap and LinkedHashSet/image-20190729165205050.png)
+![image-20190729165205050](./assets/LinkedHashMap/image-20190729165205050.png)
+
 
 事实上*LinkedHashMap*是*HashMap*的直接子类，**二者唯一的区别是LinkedHashMap在HashMap的基础上，采用双向链表（doubly-linked list）的形式将所有entry连接起来，这样是为保证元素的迭代顺序跟插入顺序相同**。上图给出了*LinkedHashMap*的结构图，主体部分跟*HashMap*完全一样，多了`header`指向双向链表的头部（是一个哑元），**该双向链表的迭代顺序就是entry的插入顺序**。
 
@@ -117,54 +118,9 @@ public class LRUCache {
 
 
 
-
-
-## LinkedHashSet
-
-前面已经说过*LinkedHashSet*是对*LinkedHashMap*的简单包装，对*LinkedHashSet*的函数调用都会转换成合适的*LinkedHashMap*方法，因此*LinkedHashSet*的实现非常简单，这里不再赘述。
-
-```
-public class LinkedHashSet<E>
-    extends HashSet<E>
-    implements Set<E>, Cloneable, java.io.Serializable {
-    ......
-    // LinkedHashSet里面有一个LinkedHashMap
-    public LinkedHashSet(int initialCapacity, float loadFactor) {
-        map = new LinkedHashMap<>(initialCapacity, loadFactor);
-    }
-	......
-    public boolean add(E e) {//简单的方法转换
-        return map.put(e, PRESENT)==null;
-    }
-    ......
-}
-```
-
-
-
-
-
 ## 参考
 
 [https://github.com/CarpenterLee/JCFInternals/blob/master/markdown/7-LinkedHashSet%20and%20LinkedHashMap.md](https://github.com/CarpenterLee/JCFInternals/blob/master/markdown/7-LinkedHashSet and LinkedHashMap.md)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

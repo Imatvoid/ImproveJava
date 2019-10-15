@@ -37,7 +37,7 @@ public class Client {
 
 使用JDK静态代理很容易就完成了对一个类的代理操作。但是JDK静态代理的缺点也暴露了出来：由于代理只能为一个类服务，如果需要代理的类很多，那么就需要编写大量的代理类，比较繁琐。我们可以使用动态代理解决.
 
-JDK静态代理是通过直接编码创建的，而JDK动态代理是利用反射机制在运行时创建代理类的。
+JDK静态代理是通过直接编码创建的，而**JDK动态代理是利用反射机制在运行时创建代理类的。**
 
 ## JDK动态代理
 
@@ -122,7 +122,20 @@ HelloWorldInterface helloWorld =  (HelloWorldInterface) Proxy.newProxyInstance(D
         helloWorld.sayHello();
 ```
 
+上述代码的关键是`Proxy.newProxyInstance(ClassLoader loader, Class[] interfaces, InvocationHandler handler)`方法，该方法会根据指定的参数动态创建代理对象。三个参数的意义如下：
 
+1. `loader`，指定代理对象的类加载器；
+2. `interfaces`，代理对象需要实现的接口，可以同时指定多个接口；
+3. `handler`，方法调用的实际处理者，代理对象的方法调用都会转发到这里(注意1)。
+
+`newProxyInstance()`会返回一个实现了指定接口的代理对象，对该对象的所有方法调用都会转发给`InvocationHandler.invoke()`方法。理解上述代码需要对Java反射机制有一定了解。动态代理神奇的地方就是：
+
+1. 代理对象是在程序运行时产生的，而不是编译期；
+2. **对代理对象的所有接口方法调用都会转发到`InvocationHandler.invoke()`方法**，在`invoke()`方法里我们可以加入任何逻辑，比如修改方法参数，加入日志功能、安全检查功能等；之后我们通过某种方式执行真正的方法体，示例中通过反射调用了Hello对象的相应方法，还可以通过RPC调用远程方法。
+
+>注意1:对于从Object中继承的方法，JDK Proxy会把`hashCode()`、`equals()`、`toString()`这三个非接口方法转发给`InvocationHandler`，其余的Object方法则不会转发。
+>
+>这也是符合逻辑的,代理只是代理.如果有对象想要进行比较,应该和原对象比较
 
 ### Proxy.newProxyInstance()
 
@@ -477,13 +490,9 @@ public final class $Proxy0 extends Proxy implements HelloWorldInterface {
 
 
 
-
-
-
-
 ### Jdk动态代理的缺点
 
-只能代理接口,代理类必须实现接口
+只能代理接口,代理类必须实现接口.
 
 <- 引用
 
@@ -493,9 +502,9 @@ Proxy类  <-  Invocationhandler(可以写代理逻辑) <- Impl实际实现
 
 https://blog.csdn.net/yhl_jxy/article/details/80586785
 
+手动生成.java并加载.
 
-
-
+https://www.jianshu.com/p/58759fef38b8
 
 
 

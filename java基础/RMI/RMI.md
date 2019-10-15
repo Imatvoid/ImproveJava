@@ -14,8 +14,8 @@
 
 见code文件
 
-[^参考]http://www.cnblogs.com/xt0810/p/3640167.html
-[^参考]http://www.cnblogs.com/dongguacai/p/5617698.html
+[参考]http://www.cnblogs.com/xt0810/p/3640167.html
+[参考]http://www.cnblogs.com/dongguacai/p/5617698.html
 
 ##### RMI的局限性
 

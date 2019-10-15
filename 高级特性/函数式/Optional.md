@@ -2,10 +2,6 @@
 
 Optional是Java8提供的为了解决null安全问题的一个API。善用Optional可以使我们代码中很多繁琐、丑陋的设计变得十分优雅。
 
-
-
-
-
 ## 对比
 
 ### Option之前
@@ -84,8 +80,6 @@ public final class Optional<T> {
   
 }
 ```
-
-
 
 
 

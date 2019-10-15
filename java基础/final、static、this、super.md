@@ -19,6 +19,20 @@
 
 
 
+注意:
+
+**static关键字不会改变类中成员的访问权限**
+
+在Java中能够影响到访问权限的只有private、public、protected（包括包访问权限）这几个关键字
+
+<img src="assets/final、static、this、super/image-20191011135028417.png" alt="image-20191011135028417" style="zoom:50%;" />
+
+提示错误"Person.age 不可视"，这说明static关键字并不会改变变量和方法的访问权限
+
+
+
+
+
 ## this 关键字
 
 this关键字用于引用类的当前实例。 例如：
@@ -40,7 +54,7 @@ class Manager {
 在上面的示例中，this关键字用于两个地方：
 
 - this.employees.length：访问类Manager的当前实例的变量。
-- this.report（）：调用类Manager的当前实例的方法。
+- this.report()：调用类Manager的当前实例的方法。
 
 此关键字是可选的，这意味着如果上面的示例在不使用此关键字的情况下表现相同。 但是，使用此关键字可能会使代码更易读或易懂。
 
@@ -76,6 +90,8 @@ public class Sub extends Super {
 
 **简单解释一下：**
 
-被 static 修饰的成员属于类，不属于单个这个类的某个对象，被类中所有对象共享。而 this 代表对本类对象的引用，指向本类对象；而 super 代表对父类对象的引用，指向父类对象；所以， **this和super是属于对象范畴的东西，而静态方法是属于类范畴的东西**。
+被 static 修饰的成员属于类，不属于单个这个类的某个对象，被类中所有对象共享。而 this 代表对本类对象的引用，指向本类对象；而 super 代表对父类对象的引用，指向父类对象；
+
+所以， **this和super是属于对象范畴的东西，而静态方法是属于类范畴的东西**。
 
 - https://blog.csdn.net/u013393958/article/details/79881037

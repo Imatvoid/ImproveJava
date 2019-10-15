@@ -235,7 +235,7 @@ public static void main(String[] args) throws IOException {
 
 ```java
 public static void main(String[] args) throws IOException {
-    File file = new File("/Users/liuluming/Documents/hello.txt");
+    File file = new File("/Users/xxx/Documents/hello.txt");
     // 此刻直接输出到屏幕
     System.out.println("hello");
     try {

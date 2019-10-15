@@ -1,4 +1,14 @@
-前面已经说过*HashSet*是对*HashMap*的简单包装，对*HashSet*的函数调用都会转换成合适的*HashMap*方法，因此*HashSet*的实现非常简单，只有不到300行代码。这里不再赘述。
+## 层次图
+
+![image-20191015182952386](assets/HashSet/image-20191015182952386.png)
+
+
+
+
+
+
+
+前面已经说过HashSet是对HashMap的简单包装，对HashSet的函数调用都会转换成合适的HashMap方法，因此HashSet的实现非常简单，只有不到300行代码。这里不再赘述。
 
 ```java
 //HashSet是对HashMap的简单包装
@@ -18,4 +28,6 @@ public class HashSet<E>
     ......
 }
 ```
+
+
 

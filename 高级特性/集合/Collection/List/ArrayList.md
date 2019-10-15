@@ -4,11 +4,9 @@
 
 ``` java
 public class ArrayList<E> extends AbstractList<E>
-        implements List<E>,                  RandomAccess, Cloneable, java.io.Serializable
+        implements List<E>, RandomAccess, Cloneable, java.io.Serializable
 ```
 > 标记接口RandomAccess,代表可以被随机访问。
-
-
 
 ## 源码分析
 
@@ -61,6 +59,18 @@ public class ArrayList<E> extends AbstractList<E>
         this.elementData = DEFAULTCAPACITY_EMPTY_ELEMENTDATA;
     }
 ```
+
+>  c.toArray might (incorrectly) not return Object[] (see 6260652) 
+>
+> 说的是public Object[] toArray() 返回的类型不一定就是 Object[]，其类型取决于其返回的实际类型. 子类可以重写方法并返回协变的子类型.
+>
+> 我们有1个Object[]数组，并不代表着我们可以将Object对象存进去，这取决于数组中元素实际的类型。
+>
+> 所以我们不能使用elementData[0] = xxx;
+>
+> https://blog.csdn.net/jdsjlzx/article/details/54344233
+
+
 
 ### 主要方法
 
@@ -131,7 +141,7 @@ public E remove(int index) {
 
 
 
-grow() 扩容
+**grow() 扩容**
 
 ```java
 private void ensureExplicitCapacity(int minCapacity) {
@@ -156,6 +166,14 @@ private void grow(int minCapacity) {
         elementData = Arrays.copyOf(elementData, newCapacity);
     }
 ```
+
+
+
+modcount
+
+增删改查中， 增导致**扩容**，则**会修改modCount**，**删一定会修改**。 **改和查一定不会修改modCount**。
+
+
 
 
 
@@ -195,8 +213,8 @@ private void writeObject(java.io.ObjectOutputStream s)
 
 ### ArrayList和Vector的区别
 
-- Vector是一个线程安全的容器,ArrayList线程不安全     但是Vector效率低,使用的synchronize关键字 
-- 扩容时候ArrayList扩0.5倍，Vector扩1倍
+- Vector是一个线程安全的容器,ArrayList线程不安全     **但是Vector效率低,使用的synchronize关键字** 
+- 扩容时候ArrayList扩容增加0.5倍，Vector扩容增加1倍
 
 
 
@@ -206,7 +224,7 @@ Collections工具类有一个synchronizedList方法
 
 可以把list变为线程安全的集合，但是意义不大，可以使用Vector.
 
-两种都是使用的synchronize关键字.性能差别不大
+**两种都是使用的synchronize关键字.性能差别不大**
 
 ### 并发下的ArrayList
 
@@ -259,14 +277,10 @@ public class ArrayListMultiThread {
 
 - 大小<200万,但没报错,写入覆盖了,但没报错,如果在生产环境这非常难以排查
 
-
-
-
-
 ## 面试问题
 
 **ArrayList插入删除一定慢么？**
-取决于你删除的元素离数组末端有多远，ArrayList拿来作为堆栈来用还是挺合适的，push和pop操作完全不涉及数据移动操作。
+取决于你删除的元素离数组末端有多远，ArrayList可以作为堆栈使用，push和pop操作完全不涉及数据移动操作(操作结尾)。
 
 **ArrayList的遍历和LinkedList遍历性能比较如何？**
 
@@ -290,8 +304,6 @@ https://juejin.im/post/5a58aa62f265da3e4d72a51b
 
 https://blog.csdn.net/fighterandknight/article/details/61240861
 https://blog.csdn.net/zxt0601/article/details/77281231
-https://blog.csdn.net/fighterandknight/article/details/61240861
-http://www.importnew.com/19867.html
 
 
 

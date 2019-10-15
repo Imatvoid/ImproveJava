@@ -1,5 +1,7 @@
 ###  Object
 
+
+
 >1. public final native Class<?> getClass()
 >2. public native int hashCode()
 >3. public boolean equals(Object obj)
@@ -11,6 +13,22 @@
 >9. public final void wait(long timeout, int nanos) throws InterruptedException
 >10. public final void wait() throws InterruptedException
 >11. protected void finalize() throws Throwable { }
+
+我是谁 getClass
+
+我从那里来 clone
+
+我到那里去 finalized
+
+世界因你而不同? hashCode, equals
+
+与他人协调 wait notify
+
+
+
+
+
+
 
 
 
@@ -32,7 +50,7 @@ hashCode方法也是一个native方法。
 
 通常情况下，不同的对象产生的哈希码是不同的。默认情况下，对象的哈希码是通过将该对象的内部地址转换成一个整数来实现的。
 
-String的hashCode方法实现如下， 计算方法是 s[0]*31^(n-1) + s[1]*31^(n-2) + … + s[n-1]，其中s[0]表示字符串的第一个字符，n表示字符串长度：
+String的hashCode方法实现如下， 计算方法是 `s[0]*31^(n-1) + s[1]*31^(n-2) + … + s[n-1]`，其中`s[0]`表示字符串的第一个字符，n表示字符串长度：
 
 ```
 public int hashCode() {
@@ -49,7 +67,9 @@ public int hashCode() {
 }
 ```
 
-比如”fo”的hashCode = 102 *31^1 + 111 = 3273， “foo”的hashCode = 102* 31^2 + 111 * 31^1 + 111 = 101574 (‘f’的ascii码为102, ‘o’的ascii码为111)
+比如”fo”的hashCode = `102 *31^1 + 111` = 3273， “foo”的hashCode = 102* 31^2 + 111 * 31^1 + 111 = 101574 
+
+> 'f'的ascii码为102, 'o'的ascii码为111)
 
 hashCode在哈希表HashMap中的应用：
 
@@ -92,7 +112,9 @@ public boolean equals(Object o) {
 
 这个例子直接说明了hashCode中通用约定的第三点：
 
-第三点：如果根据equals方法，得到两个对象不相等，那么这2个对象的hashCode值不需要必须不相同。但是，不相等的对象的hashCode值不同的话可以提高哈希表的性能。 –> 上面例子一开始没有重写equals方法，导致两个对象不相等，但是这两个对象的hashCode值一样，所以导致这两个对象在同一串链表中，影响性能。
+第三点：**如果根据equals方法，得到两个对象不相等，那么这2个对象的hashCode值不需要必须不相同**。但是，不相等的对象的hashCode值不同的话可以提高哈希表的性能。 
+
+上面例子一开始没有重写equals方法，导致两个对象不相等，但是这两个对象的hashCode值一样，所以导致这两个对象在同一串链表中，影响性能。
 
 
 
@@ -154,10 +176,6 @@ finalize方法是一个protected方法，Object类的默认实现是不进行任
 [方法签名](https://juejin.im/post/5a389954f265da432d28379e)
 
 待补充，finalize与引用
-
-
-
-
 
 
 

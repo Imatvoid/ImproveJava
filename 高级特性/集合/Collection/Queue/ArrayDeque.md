@@ -2,11 +2,14 @@
 
 Java里有一个叫做*Stack*的类，却没有叫做*Queue*的类（它是个接口名字）。当需要使用栈时，Java已不推荐使用*Stack*，而是推荐使用更高效的*ArrayDeque*；既然*Queue*只是一个接口，当需要使用队列时也就首选*ArrayDeque*了（次选是*LinkedList*）。
 
+- ArrayDeque
+- LinkedList
+
 ## Deque
 
 *Deque*的含义是“double ended queue”，即双端队列，它既可以当作栈使用，也可以当作队列使用。
 
-### *Deque*与*Queue*相对应的接口
+### Deque与Queue相对应的接口
 
 | Queue Method | Equivalent Deque Method | 说明                                   |
 | ------------ | ----------------------- | -------------------------------------- |
@@ -19,7 +22,7 @@ Java里有一个叫做*Stack*的类，却没有叫做*Queue*的类（它是个�
 
 
 
-### *Deque*与Stack相对应的接口
+### Deque与Stack相对应的接口
 
 
 | Stack Method | Equivalent Deque Method | 说明                                   |
@@ -45,7 +48,7 @@ Java里有一个叫做*Stack*的类，却没有叫做*Queue*的类（它是个�
 
 ### 概述
 
-*ArrayDeque*底层通过数组实现，为了满足可以同时在数组两端插入或删除元素的需求，该数组还必须是循环的，即**循环数组（circular array）**，也就是说数组的任何一点都可能被看作起点或者终点。*ArrayDeque*是非线程安全的（not thread-safe），当多个线程同时使用的时候，需要程序员手动同步；另外，该容器不允许放入`null`元素。
+ArrayDeque底层通过数组实现，为了满足可以同时在数组两端插入或删除元素的需求，该数组还必须是循环的，即**循环数组（circular array）**，也就是说数组的任何一点都可能被看作起点或者终点。**ArrayDeque是非线程安全的（not thread-safe），当多个线程同时使用的时候，需要程序员手动同步；另外，该容器不允许放入`null`元素。**
 
 
 

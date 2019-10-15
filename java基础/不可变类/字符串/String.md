@@ -121,7 +121,7 @@ System.out.println(str1 == str7); // false
 
 第四句执行时，JVM会在堆（heap）中创建一个以str4为基础的一个StringBuilder对象，然后调用StringBuilder的append()方法完成与str5的合并，之后会调用toString()方法在堆（heap）中创建一个String对象，并把这个String对象的引用赋给str7。
 
-
+> 不建议在循环体中使用+的拼接字符串,因为那样每次循环都会new 一个StringBuilder对象
 
 **Intern**
 
